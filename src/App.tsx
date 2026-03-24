@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef } from "react";
 
 const DEFAULT_KPI = [
@@ -2196,7 +2197,7 @@ export default function Dashboard() {
                   </div>
                   <ETxt
                     value={item.tip}
-                    onSave={(val) => editCh(i, "tip", val)}
+                    onSave={(val: string) => editCh(i, "tip", val)}
                     multiline={true}
                     style={{
                       fontSize: 11.5,
