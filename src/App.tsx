@@ -17,6 +17,15 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // ─── ALAPÉRTELMEZETT ADATOK ────────────────────────────────────
+const DEFAULT_THEMES = [
+  "Esztétikai útmutatók (laptop setupok, home office)",
+  "Új vs Felújított vs Használt összehasonlítás",
+  "Fenntarthatóság – CO2 megtakarítás",
+  "Iskolakezdés – diák és szülői célcsoport",
+  "KKV / céges flotta megoldások",
+  "Black Friday & év végi kampányok",
+];
+
 const DEFAULT_KPI = [
   { month:1,  name:"Január",     target:124704, actual:121200, phase:"Építkezés",   quarter:1 },
   { month:2,  name:"Február",    target:109288, actual:107500, phase:"Építkezés",   quarter:1 },
@@ -92,7 +101,7 @@ const DOCS = {
   daily:    () => doc(db, "dashboard", "daily"),
   persona:  () => doc(db, "dashboard", "persona"),
   quest:    () => doc(db, "dashboard", "questionnaire"),
-  channels: () => doc(db, "dashboard", "channels"),
+  themes:   () => doc(db, "dashboard", "themes"),
 };
 
 async function fbSave(docRef, data) {
@@ -193,7 +202,7 @@ export default function Dashboard() {
   const [personaSteps,setPersonaSteps]  = useState(DEFAULT_PERSONA_STEPS);
   const [questionnaire,setQuestionnaire]= useState(DEFAULT_QUESTIONNAIRE);
   const [channels,setChannels]          = useState(DEFAULT_CHANNELS);
-  const [selMonth,setSelMonth]          = useState(today.getMonth()+1);
+  const [themes,setThemes]              = useState(DEFAULT_THEMES);
   const [activeTab,setActiveTab]        = useState("tasks");
   const [showDataPanel,setShowDataPanel]= useState(false);
   const [synced,setSynced]              = useState(false);
@@ -209,6 +218,7 @@ export default function Dashboard() {
       onSnapshot(DOCS.persona(),s=>{ if(s.exists()) setPersonaSteps(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.quest(),  s=>{ if(s.exists()) setQuestionnaire(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.channels(),s=>{ if(s.exists()) setChannels(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.themes(),  s=>{ if(s.exists()) setThemes(JSON.parse(s.data().data)); }),
     ];
     setSynced(true);
     setSyncStatus("✓ Szinkronizálva");
@@ -223,6 +233,7 @@ export default function Dashboard() {
   const savePersona  = v => { setPersonaSteps(v);   fbSave(DOCS.persona(), v); };
   const saveQuest    = v => { setQuestionnaire(v);  fbSave(DOCS.quest(), v); };
   const saveChannels = v => { setChannels(v);       fbSave(DOCS.channels(), v); };
+  const saveThemes   = v => { setThemes(v);         fbSave(DOCS.themes(), v); };
 
   // ─ Derived ─
   const m   = kpi.find(k=>k.month===selMonth)||kpi[3];
@@ -363,7 +374,7 @@ export default function Dashboard() {
         </div>
 
         {/* KPI CARDS */}
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr",gap:12,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr",gap:12,marginBottom:12}}>
 
           {/* Main */}
           <div style={{background:"#161b27",border:`1px solid ${ph.accent}35`,borderRadius:14,padding:"20px 24px"}}>
@@ -451,6 +462,31 @@ export default function Dashboard() {
               );
             })}
             {kpi.filter(k=>k.actual!=null).length===0&&<div style={{fontSize:12,color:"#2a3347",textAlign:"center",paddingTop:20}}>Még nincs tény adat</div>}
+          </div>
+
+          {/* 2026-os témák – NEM kerül ide, lentebb lesz */}
+
+        </div>
+
+        {/* 2026-OS TÉMÁK – teljes szélességű box */}
+        <div style={{background:"#161b27",border:"1px solid #08B7E444",borderRadius:14,padding:"16px 22px",marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#e0e6f0"}}>🎯 2026-os stratégiai témák</div>
+            <button onClick={()=>saveThemes([...themes,"Új téma..."])}
+              style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,flexShrink:0}}>+ Új téma</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {themes.map((theme,i)=>(
+              <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:"#08B7E4",flexShrink:0,marginTop:5}}/>
+                <div style={{flex:1}}>
+                  <ETxt value={theme} onSave={val=>saveThemes(themes.map((t,idx)=>idx===i?val:t))}
+                    style={{fontSize:12.5,color:"#b0b8cc",lineHeight:1.5}}/>
+                </div>
+                <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))}
+                  style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
+              </div>
+            ))}
           </div>
         </div>
 
