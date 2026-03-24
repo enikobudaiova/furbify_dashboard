@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
 // ─── FIREBASE CONFIG ───────────────────────────────────────────
 const firebaseConfig = {
@@ -480,7 +480,7 @@ export default function Dashboard() {
               <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:"#08B7E4",flexShrink:0,marginTop:5}}/>
                 <div style={{flex:1}}>
-                  <ETxt value={theme} onSave={val=>saveThemes(themes.map((t,idx)=>idx===i?val:t))}
+                  <ETxt value={theme} onSave={val=>saveThemes(themes.map((th,idx)=>idx===i?val:th))}
                     style={{fontSize:12.5,color:"#b0b8cc",lineHeight:1.5}}/>
                 </div>
                 <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))}
