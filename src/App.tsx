@@ -203,6 +203,7 @@ export default function Dashboard() {
   const [questionnaire,setQuestionnaire]= useState(DEFAULT_QUESTIONNAIRE);
   const [channels,setChannels]          = useState(DEFAULT_CHANNELS);
   const [themes,setThemes]              = useState(DEFAULT_THEMES);
+  const [selMonth,setSelMonth]          = useState(today.getMonth()+1);
   const [activeTab,setActiveTab]        = useState("tasks");
   const [showDataPanel,setShowDataPanel]= useState(false);
   const [synced,setSynced]              = useState(false);
