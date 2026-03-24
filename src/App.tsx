@@ -76,7 +76,7 @@ const DEFAULT_QUESTIONNAIRE = [
   { label:"📊 Elemzés", val:"Máj. 1–2. hét: feldolgozás, dokumentum, prezentáció" },
 ];
 
-const DEFAULT_CHANNELS = [
+const DEFAULT_TRAFFIC_CHANNELS = [
   { ch:"Google Ads (PPC)", mix:"Performance – 70%", tip:"Shopping, Search, Performance Max. Fő forgalomforrás.", color:"#4285f4" },
   { ch:"TikTok / Reels", mix:"Edukáció – 30%", tip:"Heti 1 rövid videó. Fiatal szegmens + brand awareness.", color:"#ff2d55" },
   { ch:"YouTube Shorts", mix:"SEO + Edukáció", tip:"Heti 1 videó. Keresési forgalom hosszú távon.", color:"#ff0000" },
@@ -95,13 +95,14 @@ const MONTH_NAMES = ["Január","Február","Március","Április","Május","Júniu
 
 // ─── FIREBASE HELPERS ──────────────────────────────────────────
 const DOCS = {
-  kpi:      () => doc(db, "dashboard", "kpi"),
-  tasks:    () => doc(db, "dashboard", "tasks"),
-  checks:   () => doc(db, "dashboard", "checks"),
-  daily:    () => doc(db, "dashboard", "daily"),
-  persona:  () => doc(db, "dashboard", "persona"),
-  quest:    () => doc(db, "dashboard", "questionnaire"),
-  themes:   () => doc(db, "dashboard", "themes"),
+  kpi:             () => doc(db, "dashboard", "kpi"),
+  tasks:           () => doc(db, "dashboard", "tasks"),
+  checks:          () => doc(db, "dashboard", "checks"),
+  daily:           () => doc(db, "dashboard", "daily"),
+  persona:         () => doc(db, "dashboard", "persona"),
+  quest:           () => doc(db, "dashboard", "questionnaire"),
+  themes:          () => doc(db, "dashboard", "themes"),
+  trafficChannels: () => doc(db, "dashboard", "channels"),
 };
 
 async function fbSave(docRef, data) {
@@ -201,7 +202,7 @@ export default function Dashboard() {
   const [daily,setDaily]                = useState({});
   const [personaSteps,setPersonaSteps]  = useState(DEFAULT_PERSONA_STEPS);
   const [questionnaire,setQuestionnaire]= useState(DEFAULT_QUESTIONNAIRE);
-  const [channels,setChannels]          = useState(DEFAULT_CHANNELS);
+  const [trafficChannels,setTrafficChannels]          = useState(DEFAULT_TRAFFIC_CHANNELS);
   const [themes,setThemes]              = useState(DEFAULT_THEMES);
   const [selMonth,setSelMonth]          = useState(today.getMonth()+1);
   const [activeTab,setActiveTab]        = useState("tasks");
@@ -218,7 +219,7 @@ export default function Dashboard() {
       onSnapshot(DOCS.daily(),  s=>{ if(s.exists()) setDaily(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.persona(),s=>{ if(s.exists()) setPersonaSteps(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.quest(),  s=>{ if(s.exists()) setQuestionnaire(JSON.parse(s.data().data)); }),
-      onSnapshot(DOCS.channels(),s=>{ if(s.exists()) setChannels(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.trafficChannels(),s=>{ if(s.exists()) setTrafficChannels(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.themes(),  s=>{ if(s.exists()) setThemes(JSON.parse(s.data().data)); }),
     ];
     setSynced(true);
@@ -233,7 +234,7 @@ export default function Dashboard() {
   const saveDaily    = v => { setDaily(v);          fbSave(DOCS.daily(), v); };
   const savePersona  = v => { setPersonaSteps(v);   fbSave(DOCS.persona(), v); };
   const saveQuest    = v => { setQuestionnaire(v);  fbSave(DOCS.quest(), v); };
-  const saveChannels = v => { setChannels(v);       fbSave(DOCS.channels(), v); };
+  const saveTrafficChannels = v => { setTrafficChannels(v);       fbSave(DOCS.trafficChannels(), v); };
   const saveThemes   = v => { setThemes(v);         fbSave(DOCS.themes(), v); };
 
   // ─ Derived ─
@@ -265,7 +266,7 @@ export default function Dashboard() {
   const setDayVal   = (key,val)        => saveDaily({...daily,[key]:val});
   const editStep    = (i,f,v) => savePersona(personaSteps.map((s,idx)=>idx===i?{...s,[f]:v}:s));
   const editQ       = (i,f,v) => saveQuest(questionnaire.map((q,idx)=>idx===i?{...q,[f]:v}:q));
-  const editCh      = (i,f,v) => saveChannels(channels.map((c,idx)=>idx===i?{...c,[f]:v}:c));
+  const editCh      = (i,f,v) => saveTrafficChannels(trafficChannels.map((c,idx)=>idx===i?{...c,[f]:v}:c));
 
   const t = tasks[selMonth]||{persona:[],campaigns:[],other:[],content:[]};
 
@@ -563,12 +564,12 @@ export default function Dashboard() {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>📡 Forgalomterelő csatornák</div>
-              <button onClick={()=>saveChannels([...channels,{ch:"Új csatorna",mix:"Mix",tip:"Leírás...",color:"#6b7280"}])} style={{background:"#34d39922",border:"1px dashed #34d39955",color:"#34d399",fontSize:11,padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új csatorna</button>
+              <button onClick={()=>saveTrafficChannels([...trafficChannels,{ch:"Új csatorna",mix:"Mix",tip:"Leírás...",color:"#6b7280"}])} style={{background:"#34d39922",border:"1px dashed #34d39955",color:"#34d399",fontSize:11,padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új csatorna</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
-              {channels.map((item,i)=>(
+              {trafficChannels.map((item,i)=>(
                 <div key={i} style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"14px 16px",position:"relative"}}>
-                  <button onClick={()=>saveChannels(channels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+                  <button onClick={()=>saveTrafficChannels(trafficChannels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
                     <input type="color" value={item.color} onChange={e=>editCh(i,"color",e.target.value)} style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",padding:0,flexShrink:0}}/>
                     <ETxt value={item.ch} onSave={val=>editCh(i,"ch",val)} style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0"}}/>
