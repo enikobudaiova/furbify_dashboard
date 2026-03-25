@@ -236,6 +236,46 @@ function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDe
   );
 }
 
+// ─── GROWTH FIELD ──────────────────────────────────────────────
+// Kétirányú: beírod a %-ot → kiszámolja a célt, vagy a cél alapján mutatja a %-ot
+function GrowthField({ prevYear, target, accent, onChangeTarget }) {
+  const currentPct = prevYear ? ((target - prevYear) / prevYear * 100) : 0;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(currentPct.toFixed(1));
+  const r = useRef();
+  useEffect(() => { if (editing) r.current?.select(); }, [editing]);
+
+  if (editing) return (
+    <div style={{display:"flex",alignItems:"center",gap:4}}>
+      <input ref={r} value={draft} onChange={e=>setDraft(e.target.value)}
+        onBlur={()=>{
+          setEditing(false);
+          const pct = parseFloat(draft.replace(",","."));
+          if (!isNaN(pct) && prevYear) {
+            const newTarget = Math.round(prevYear * (1 + pct / 100));
+            onChangeTarget(newTarget);
+          }
+        }}
+        onKeyDown={e=>{ if(e.key==="Enter") r.current.blur(); if(e.key==="Escape") setEditing(false); }}
+        style={{background:"#252b3b",border:`1px solid ${accent}`,borderRadius:4,color:"#fff",fontSize:16,fontWeight:800,width:60,outline:"none",padding:"0 4px"}}
+      />
+      <span style={{fontSize:12,color:accent,fontWeight:800}}>%</span>
+    </div>
+  );
+
+  return (
+    <div onClick={()=>{ setDraft(currentPct.toFixed(1)); setEditing(true); }}
+      title="Kattints a % módosításához" style={{cursor:"text"}}>
+      <div style={{fontSize:16,fontWeight:800,color:accent}}>
+        {currentPct >= 0 ? "+" : ""}{currentPct.toFixed(1)}%
+      </div>
+      <div style={{fontSize:9,color:"#3a4555",marginTop:2}}>
+        = {Math.round(prevYear*(1+currentPct/100)).toLocaleString("hu")} látogató
+      </div>
+    </div>
+  );
+}
+
 // ─── SPARKLINE ─────────────────────────────────────────────────
 function Sparkline({ vals, color, height=36 }) {
   if(!vals||vals.length<2) return null;
@@ -532,7 +572,7 @@ export default function Dashboard() {
               <span>Havi cél: {target.toLocaleString("hu")} látogató</span>
               {diff!=null&&<span style={{color:diff>=0?"#34d399":"#f87171",fontWeight:700}}>{diff>=0?"+":""}{diff.toLocaleString("hu")} látogató</span>}
             </div>
-            {/* 3 kis kártya */}
+            {/* 3 kis kártya + növekedés kalkulátor */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
               <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Havi cél ✏️</div>
@@ -543,11 +583,19 @@ export default function Dashboard() {
                 <ENum value={m.prevYear} onSave={v=>updateKpi(selMonth,"prevYear",v)} placeholder="beírás" color="#5a7a8e" size={16}/>
               </div>
               <div style={{background:"#0d1117",border:`1px solid ${ph.accent}33`,borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Cél növekedés</div>
-                {m.prevYear!=null
-                  ? <div style={{fontSize:16,fontWeight:800,color:ph.accent}}>+{((target-m.prevYear)/m.prevYear*100).toFixed(1)}%<span style={{fontSize:9,color:"#3a4555",fontWeight:400,marginLeft:4}}>vs. 2025</span></div>
-                  : <div style={{fontSize:11,color:"#3a4555"}}>Írd be a 2025-ös adatot</div>
-                }
+                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Cél növekedés ✏️</div>
+                {m.prevYear!=null ? (
+                  <div>
+                    <GrowthField
+                      prevYear={m.prevYear}
+                      target={target}
+                      accent={ph.accent}
+                      onChangeTarget={v=>updateKpi(selMonth,"target",v)}
+                    />
+                  </div>
+                ) : (
+                  <div style={{fontSize:11,color:"#3a4555"}}>Írd be a 2025-ös adatot</div>
+                )}
               </div>
             </div>
             {dailyVals.length>1&&(
@@ -634,7 +682,67 @@ export default function Dashboard() {
               <TaskSection title="📣 Kampányok" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
               <TaskSection title="📧 Hírlevelek" items={t.other} accent="#FA8C05" month={selMonth} type="other" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
               <TaskSection title="🎬 Content kötelező" items={t.content} accent="#73AF1C" month={selMonth} type="content" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              {/* Extra szekciók */}
+              {(t.extra||[]).map((sec,si)=>(
+                <div key={sec.id} style={{position:"relative"}}>
+                  <button onClick={()=>{
+                    const n={...tasks};n[selMonth]={...n[selMonth]};
+                    n[selMonth].extra=(n[selMonth].extra||[]).filter((_,idx)=>idx!==si);
+                    saveTasks(n);
+                  }} title="Szekció törlése" style={{position:"absolute",top:12,right:12,zIndex:10,background:"#7f1d1d",border:"none",color:"#f87171",cursor:"pointer",fontSize:11,padding:"2px 8px",borderRadius:4,fontWeight:700}}>Szekció törlése</button>
+                  <TaskSection
+                    title={
+                      <ETxt value={sec.title} onSave={val=>{
+                        const n={...tasks};n[selMonth]={...n[selMonth]};
+                        n[selMonth].extra=(n[selMonth].extra||[]).map((s,idx)=>idx===si?{...s,title:val}:s);
+                        saveTasks(n);
+                      }} style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0"}}/>
+                    }
+                    items={sec.items||[]}
+                    accent="#a78bfa"
+                    month={selMonth}
+                    type={`extra_${si}`}
+                    onToggle={(mo,type,idx)=>{
+                      const n={...tasks};n[mo]={...n[mo]};
+                      const exArr=[...(n[mo].extra||[])];
+                      exArr[si]={...exArr[si],items:[...exArr[si].items]};
+                      const cur=exArr[si].items[idx].status;
+                      exArr[si].items[idx]={...exArr[si].items[idx],status:cur==="done"?"todo":"done"};
+                      n[mo].extra=exArr; saveTasks(n);
+                    }}
+                    onEdit={(mo,type,idx,field,val)=>{
+                      const n={...tasks};n[mo]={...n[mo]};
+                      const exArr=[...(n[mo].extra||[])];
+                      exArr[si]={...exArr[si],items:[...exArr[si].items]};
+                      exArr[si].items[idx]={...exArr[si].items[idx],[field]:val};
+                      n[mo].extra=exArr; saveTasks(n);
+                    }}
+                    onDelete={(mo,type,idx)=>{
+                      const n={...tasks};n[mo]={...n[mo]};
+                      const exArr=[...(n[mo].extra||[])];
+                      exArr[si]={...exArr[si],items:exArr[si].items.filter((_,i)=>i!==idx)};
+                      n[mo].extra=exArr; saveTasks(n);
+                    }}
+                    onAdd={(mo,type,label)=>{
+                      const n={...tasks};n[mo]={...n[mo]};
+                      const exArr=[...(n[mo].extra||[])];
+                      exArr[si]={...exArr[si],items:[...(exArr[si].items||[]),makeTask(label)]};
+                      n[mo].extra=exArr; saveTasks(n);
+                    }}
+                    team={team}
+                  />
+                </div>
+              ))}
             </div>
+            {/* Új szekció gomb */}
+            <button onClick={()=>{
+              const n={...tasks};
+              if(!n[selMonth])n[selMonth]={persona:[],campaigns:[],other:[],content:[],extra:[]};
+              n[selMonth]={...n[selMonth],extra:[...(n[selMonth].extra||[]),{id:Date.now()+"",title:"Új szekció",items:[]}]};
+              saveTasks(n);
+            }} style={{marginTop:12,width:"100%",background:"#a78bfa22",border:"1px dashed #a78bfa55",color:"#a78bfa",fontSize:12,padding:"10px",borderRadius:10,cursor:"pointer",fontWeight:700}}>
+              + Új feladat szekció hozzáadása
+            </button>
           </div>
         )}
 
