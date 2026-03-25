@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
-// ─── FIREBASE CONFIG ───────────────────────────────────────────
 const firebaseConfig = {
   apiKey: "AIzaSyDW3NXUG8eZJqE3AKC6IElpiWx4ODsToXo",
   authDomain: "furbify-dashboard.firebaseapp.com",
@@ -12,11 +11,47 @@ const firebaseConfig = {
   messagingSenderId: "349300222160",
   appId: "1:349300222160:web:e2fed64b61df2ef6fc16d5"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ─── ALAPÉRTELMEZETT ADATOK ────────────────────────────────────
+// ─── TEAM MEMBERS ─────────────────────────────────────────────
+const DEFAULT_TEAM = [
+  { id:"eniko", name:"Enikő",   color:"#73AF1C" },
+  { id:"agnes", name:"Ágnes",   color:"#08B7E4" },
+  { id:"agi",   name:"Ági",     color:"#FA8C05" },
+];
+
+const STATUSES = [
+  { id:"todo",       label:"Tervezés",    color:"#4a5568" },
+  { id:"inprogress", label:"Folyamatban", color:"#08B7E4" },
+  { id:"review",     label:"Review",      color:"#FA8C05" },
+  { id:"done",       label:"Kész",        color:"#73AF1C" },
+];
+
+// task object: { id, label, assignee:"", deadline:"", status:"todo" }
+function makeTask(label) {
+  return { id: Date.now()+"_"+Math.random().toString(36).slice(2), label, assignee:"", deadline:"", status:"todo" };
+}
+
+const DEFAULT_CONTENT_ITEMS = ["2 blog poszt","13 hírlevél","10+ kreatív anyag","~4 TikTok/Reels videó","~4 YouTube Shorts videó","~8 Facebook/Instagram poszt"];
+
+function makeTasks(arr) { return arr.map(makeTask); }
+
+const DEFAULT_TASKS = {
+  1:  { persona:[], campaigns:makeTasks(["Téli kiárusítás kampány lezárása","Q1 performance kampány indítása","PPC ügynökség briefelése"]), other:makeTasks(["Éves KPI rendszer véglegesítése","Ügynökség kiválasztás"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  2:  { persona:[], campaigns:makeTasks(["Valentine's Day kampány","Q1 performance kampány optimalizálás"]), other:makeTasks(["Ügynökség szerződés","Belső grafikus felvétel"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  3:  { persona:makeTasks(["Kérdőív kidolgozásának megkezdése – kérdések, struktúra, jutalom"]), campaigns:makeTasks(["Q2 kampányok tervezése ügynökséggel","Webshop konverzió audit","Iskolakezdés kampány előkészítés"]), other:makeTasks(["Q1 kiértékelés","Ügynökség brief Q2-re"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  4:  { persona:makeTasks(["Kérdőív véglegesítése","Kérdőív kiküldése hírlevél listára – ápr. 1. hét","Emlékeztető kiküldése – ápr. 3. hét","Adatgyűjtés lezárása – ápr. 30."]), campaigns:makeTasks(["Forgalomterelő kvíz landing page","Google Shopping kampány optimalizálás","TikTok Ads tesztelés","Remarketing listák frissítése"]), other:makeTasks(["Hírlevél lista tisztítás","Lead magnet elkészítés"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  5:  { persona:makeTasks(["1. kérdőív adatok elemzése – persona 1","2. kérdőív összeállítása (KKV)","2. kérdőív kiküldése – máj. 2. hét"]), campaigns:makeTasks(["Gold/Silver/Bronze kategória bemutató","Összehasonlítás: Új vs Felújított vs Használt","Lead magnet forgalomterelő hirdetések"]), other:makeTasks(["KKV szegmens tartalom tervezés","Influencer kapcsolatfelvétel"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  6:  { persona:makeTasks(["2. kérdőív adatok elemzése – persona 2","Mindkét persona végleges dokumentum ✅","Persona prezentáció a csapatnak"]), campaigns:makeTasks(["Q2 zárókampány – nyári akciók","YouTube Shorts SEO kampány","Szeptemberi iskolakezdés kampány tervezése"]), other:makeTasks(["Q2 kiértékelés","Q3 kampány brief"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  7:  { persona:makeTasks(["✅ Persona kész – alkalmazás Q3 kampányokban"]), campaigns:makeTasks(["Nyári back to school előkészítő","Setup Wars sorozat indítása","Retargeting intenzifikálás"]), other:makeTasks(["Q4 tervezés megkezdése"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  8:  { persona:[], campaigns:makeTasks(["Iskolakezdés főkampány","Student deal forgalomterelő","ThinkPad tartósság kampány"]), other:makeTasks(["Black Friday landing page tervezés"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  9:  { persona:[], campaigns:makeTasks(["Iskolakezdés utóhullám kampány","KKV flotta kampány indítása"]), other:makeTasks(["Q4 kampány briefek véglegesítése"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  10: { persona:[], campaigns:makeTasks(["Black Friday előkampány – hype építés","Performance Max kampányok indítása","Remarketing intenzifikálás"]), other:makeTasks(["TOP 3 termék kiválasztása","Influencer anyagok gyártása"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  11: { persona:[], campaigns:makeTasks(["Black Friday / Cyber Monday főkampány 🔥","Email sorozat – napi ajánlatok","Urgency alapú hirdetések"]), other:makeTasks(["Napi kampány monitoring"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+  12: { persona:[], campaigns:makeTasks(["Karácsonyi kampány – ajándék laptop","Év végi TOP 3 termék bemutató"]), other:makeTasks(["2026 éves kiértékelés","2027 stratégia tervezés"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
+};
+
 const DEFAULT_THEMES = [
   "Esztétikai útmutatók (laptop setupok, home office)",
   "Új vs Felújított vs Használt összehasonlítás",
@@ -27,36 +62,19 @@ const DEFAULT_THEMES = [
 ];
 
 const DEFAULT_KPI = [
-  { month:1,  name:"Január",     target:124704, actual:121200, phase:"Építkezés",   quarter:1 },
-  { month:2,  name:"Február",    target:109288, actual:107500, phase:"Építkezés",   quarter:1 },
-  { month:3,  name:"Március",    target:122285, actual:null,   phase:"Építkezés",   quarter:1 },
-  { month:4,  name:"Április",    target:101889, actual:null,   phase:"Építkezés",   quarter:2 },
-  { month:5,  name:"Május",      target:97464,  actual:null,   phase:"Építkezés",   quarter:2 },
-  { month:6,  name:"Június",     target:105714, actual:null,   phase:"Építkezés",   quarter:2 },
-  { month:7,  name:"Július",     target:121657, actual:null,   phase:"Bemelegítés", quarter:3 },
-  { month:8,  name:"Augusztus",  target:130606, actual:null,   phase:"Bemelegítés", quarter:3 },
-  { month:9,  name:"Szeptember", target:122276, actual:null,   phase:"Bemelegítés", quarter:3 },
-  { month:10, name:"Október",    target:149936, actual:null,   phase:"Performance", quarter:4 },
-  { month:11, name:"November",   target:163600, actual:null,   phase:"Performance", quarter:4 },
-  { month:12, name:"December",   target:130997, actual:null,   phase:"Performance", quarter:4 },
+  { month:1,  name:"Január",     target:124704, actual:121200, prevYear:null, phase:"Építkezés",   quarter:1 },
+  { month:2,  name:"Február",    target:109288, actual:107500, prevYear:null, phase:"Építkezés",   quarter:1 },
+  { month:3,  name:"Március",    target:122285, actual:null,   prevYear:null, phase:"Építkezés",   quarter:1 },
+  { month:4,  name:"Április",    target:101889, actual:null,   prevYear:null, phase:"Építkezés",   quarter:2 },
+  { month:5,  name:"Május",      target:97464,  actual:null,   prevYear:null, phase:"Építkezés",   quarter:2 },
+  { month:6,  name:"Június",     target:105714, actual:null,   prevYear:null, phase:"Építkezés",   quarter:2 },
+  { month:7,  name:"Július",     target:121657, actual:null,   prevYear:null, phase:"Bemelegítés", quarter:3 },
+  { month:8,  name:"Augusztus",  target:130606, actual:null,   prevYear:null, phase:"Bemelegítés", quarter:3 },
+  { month:9,  name:"Szeptember", target:122276, actual:null,   prevYear:null, phase:"Bemelegítés", quarter:3 },
+  { month:10, name:"Október",    target:149936, actual:null,   prevYear:null, phase:"Performance", quarter:4 },
+  { month:11, name:"November",   target:163600, actual:null,   prevYear:null, phase:"Performance", quarter:4 },
+  { month:12, name:"December",   target:130997, actual:null,   prevYear:null, phase:"Performance", quarter:4 },
 ];
-
-const DEFAULT_CONTENT = ["2 blog poszt","13 hírlevél","10+ kreatív anyag","~4 TikTok/Reels videó","~4 YouTube Shorts videó","~8 Facebook/Instagram poszt"];
-
-const DEFAULT_TASKS = {
-  1:  { persona:[], campaigns:["Téli kiárusítás kampány lezárása","Q1 performance kampány indítása","PPC ügynökség briefelése"], other:["Éves KPI rendszer véglegesítése","Ügynökség kiválasztás"], content:[...DEFAULT_CONTENT] },
-  2:  { persona:[], campaigns:["Valentine's Day kampány","Q1 performance kampány optimalizálás"], other:["Ügynökség szerződés","Belső grafikus felvétel"], content:[...DEFAULT_CONTENT] },
-  3:  { persona:["Kérdőív kidolgozásának megkezdése – kérdések, struktúra, jutalom"], campaigns:["Q2 kampányok tervezése ügynökséggel","Webshop konverzió audit","Iskolakezdés kampány előkészítés"], other:["Q1 kiértékelés","Ügynökség brief Q2-re"], content:[...DEFAULT_CONTENT] },
-  4:  { persona:["Kérdőív véglegesítése (kérdések, jutalom, platform)","Kérdőív kiküldése hírlevél listára – ápr. 1. hét","Emlékeztető kiküldése – ápr. 3. hét","Adatgyűjtés lezárása – ápr. 30."], campaigns:["Forgalomterelő: 'Melyiket válaszd?' kvíz landing page","Google Shopping kampány optimalizálás","TikTok Ads tesztelés","Remarketing listák frissítése"], other:["Hírlevél lista tisztítás","Lead magnet elkészítés"], content:[...DEFAULT_CONTENT] },
-  5:  { persona:["1. kérdőív adatok elemzése – persona 1","2. kérdőív összeállítása (KKV)","2. kérdőív kiküldése – máj. 2. hét"], campaigns:["Gold/Silver/Bronze kategória bemutató","Összehasonlítás: Új vs Felújított vs Használt","Lead magnet forgalomterelő hirdetések"], other:["KKV szegmens tartalom tervezés","Influencer kapcsolatfelvétel"], content:[...DEFAULT_CONTENT] },
-  6:  { persona:["2. kérdőív adatok elemzése – persona 2","Mindkét persona végleges dokumentum ✅","Persona prezentáció a csapatnak"], campaigns:["Q2 zárókampány – nyári akciók","YouTube Shorts SEO kampány","Szeptemberi iskolakezdés kampány tervezése"], other:["Q2 kiértékelés","Q3 kampány brief"], content:[...DEFAULT_CONTENT] },
-  7:  { persona:["✅ Persona kész – alkalmazás Q3 kampányokban"], campaigns:["Nyári 'back to school' előkészítő","Setup Wars sorozat indítása","Retargeting intenzifikálás"], other:["Q4 tervezés megkezdése"], content:[...DEFAULT_CONTENT] },
-  8:  { persona:[], campaigns:["Iskolakezdés főkampány","Student deal forgalomterelő","ThinkPad tartósság kampány"], other:["Black Friday landing page tervezés"], content:[...DEFAULT_CONTENT] },
-  9:  { persona:[], campaigns:["Iskolakezdés utóhullám kampány","KKV flotta kampány indítása"], other:["Q4 kampány briefek véglegesítése"], content:[...DEFAULT_CONTENT] },
-  10: { persona:[], campaigns:["Black Friday előkampány – hype építés","Performance Max kampányok indítása","Remarketing intenzifikálás"], other:["TOP 3 termék kiválasztása","Influencer anyagok gyártása"], content:[...DEFAULT_CONTENT] },
-  11: { persona:[], campaigns:["Black Friday / Cyber Monday főkampány 🔥","Email sorozat – napi ajánlatok","Urgency alapú hirdetések"], other:["Napi kampány monitoring"], content:[...DEFAULT_CONTENT] },
-  12: { persona:[], campaigns:["Karácsonyi kampány – ajándék laptop","Év végi TOP 3 termék bemutató"], other:["2026 éves kiértékelés","2027 stratégia tervezés"], content:[...DEFAULT_CONTENT] },
-};
 
 const DEFAULT_PERSONA_STEPS = [
   { month:3, label:"Kérdőív kidolgozás", color:"#6b7280", detail:"Kérdések összeállítása, jutalom (500–1000 Ft kupon), platform kiválasztása." },
@@ -90,86 +108,121 @@ const PHASE = {
   "Bemelegítés": { accent:"#FA8C05", dim:"#2e1a00" },
   "Performance": { accent:"#E45050", dim:"#2e0a0a" },
 };
-
 const MONTH_NAMES = ["Január","Február","Március","Április","Május","Június","Július","Augusztus","Szeptember","Október","November","December"];
 
-// ─── FIREBASE HELPERS ──────────────────────────────────────────
+// ─── FIREBASE ──────────────────────────────────────────────────
 const DOCS = {
-  kpi:             () => doc(db, "dashboard", "kpi"),
-  tasks:           () => doc(db, "dashboard", "tasks"),
-  checks:          () => doc(db, "dashboard", "checks"),
-  daily:           () => doc(db, "dashboard", "daily"),
-  persona:         () => doc(db, "dashboard", "persona"),
-  quest:           () => doc(db, "dashboard", "questionnaire"),
-  themes:          () => doc(db, "dashboard", "themes"),
-  trafficChannels: () => doc(db, "dashboard", "channels"),
+  kpi:             () => doc(db,"dashboard","kpi"),
+  tasks:           () => doc(db,"dashboard","tasks_v8"),
+  daily:           () => doc(db,"dashboard","daily"),
+  persona:         () => doc(db,"dashboard","persona"),
+  quest:           () => doc(db,"dashboard","questionnaire"),
+  themes:          () => doc(db,"dashboard","themes"),
+  trafficChannels: () => doc(db,"dashboard","channels"),
+  team:            () => doc(db,"dashboard","team"),
 };
-
-async function fbSave(docRef, data) {
-  try { await setDoc(docRef, { data: JSON.stringify(data) }); } catch(e) { console.error("Firebase save error:", e); }
+async function fbSave(ref, data) {
+  try { await setDoc(ref, { data: JSON.stringify(data) }); } catch(e) { console.error(e); }
 }
 
-// ─── UI COMPONENTS ─────────────────────────────────────────────
+// ─── HELPERS ───────────────────────────────────────────────────
+function daysDiff(dateStr) {
+  if (!dateStr) return null;
+  const diff = Math.floor((new Date(dateStr) - new Date()) / 86400000);
+  return diff;
+}
+
+function DeadlineBadge({ deadline, status }) {
+  if (!deadline || status === "done") return null;
+  const d = daysDiff(deadline);
+  if (d === null) return null;
+  if (d < 0) return <span style={{fontSize:10,background:"#7f1d1d",color:"#f87171",padding:"1px 7px",borderRadius:10,marginLeft:4,fontWeight:700}}>{Math.abs(d)} napja késik</span>;
+  if (d <= 3) return <span style={{fontSize:10,background:"#78350f",color:"#fbbf24",padding:"1px 7px",borderRadius:10,marginLeft:4,fontWeight:700}}>{d === 0 ? "Ma esedékes" : `${d} nap`}</span>;
+  return <span style={{fontSize:10,background:"#1a2535",color:"#5a7a8e",padding:"1px 7px",borderRadius:10,marginLeft:4}}>{new Date(deadline).toLocaleDateString("hu")}</span>;
+}
+
+// ─── EDITABLE COMPONENTS ───────────────────────────────────────
 function ENum({ value, onSave, placeholder="—", color="#fff", size=20 }) {
-  const [e,setE]=useState(false);
-  const [d,setD]=useState(value!=null?String(value):"");
-  const r=useRef();
-  useEffect(()=>{ if(e) r.current?.select(); },[e]);
-  if(e) return (
-    <input ref={r} value={d} onChange={ev=>setD(ev.target.value)}
-      onBlur={()=>{ setE(false); const n=parseInt(d.replace(/[\s\u00a0]/g,"")); if(!isNaN(n)) onSave(n); else onSave(null); }}
-      onKeyDown={ev=>{ if(ev.key==="Enter") r.current.blur(); if(ev.key==="Escape"){setE(false);setD(value!=null?String(value):"");} }}
-      style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#fff",fontSize:size,fontWeight:800,width:140,outline:"none",padding:"0 6px"}}
-    />
-  );
-  return (
-    <span onClick={()=>{setE(true);setD(value!=null?String(value):"");}} title="Kattints a szerkesztéshez"
-      style={{cursor:"text",color:value!=null?color:"#3a4555",borderBottom:"1px dashed #3a4555",paddingBottom:1,fontSize:size,fontWeight:800}}>
-      {value!=null ? value.toLocaleString("hu") : placeholder}
-    </span>
-  );
+  const [e,setE]=useState(false); const [d,setD]=useState(value!=null?String(value):""); const r=useRef();
+  useEffect(()=>{if(e)r.current?.select();},[e]);
+  if(e) return <input ref={r} value={d} onChange={ev=>setD(ev.target.value)}
+    onBlur={()=>{setE(false);const n=parseInt(d.replace(/[\s\u00a0]/g,""));if(!isNaN(n))onSave(n);else onSave(null);}}
+    onKeyDown={ev=>{if(ev.key==="Enter")r.current.blur();if(ev.key==="Escape"){setE(false);setD(value!=null?String(value):"");}}}
+    style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#fff",fontSize:size,fontWeight:800,width:140,outline:"none",padding:"0 6px"}}/>;
+  return <span onClick={()=>{setE(true);setD(value!=null?String(value):"");}} title="Kattints a szerkesztéshez"
+    style={{cursor:"text",color:value!=null?color:"#3a4555",borderBottom:"1px dashed #3a4555",paddingBottom:1,fontSize:size,fontWeight:800}}>
+    {value!=null?value.toLocaleString("hu"):placeholder}</span>;
 }
 
 function ETxt({ value, onSave, placeholder="", multiline=false, style={} }) {
-  const [e,setE]=useState(false);
-  const [d,setD]=useState(value);
-  const r=useRef();
-  useEffect(()=>{ if(e) r.current?.focus(); },[e]);
-  const commit=()=>{ setE(false); if(d.trim()) onSave(d.trim()); else onSave(value); };
-  if(e && multiline) return <textarea ref={r} value={d} onChange={ev=>setD(ev.target.value)} onBlur={commit}
+  const [e,setE]=useState(false); const [d,setD]=useState(value); const r=useRef();
+  useEffect(()=>{if(e)r.current?.focus();},[e]);
+  const commit=()=>{setE(false);if(d.trim())onSave(d.trim());else onSave(value);};
+  if(e&&multiline) return <textarea ref={r} value={d} onChange={ev=>setD(ev.target.value)} onBlur={commit}
     style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#e0e6f0",fontSize:12,padding:"4px 8px",width:"100%",outline:"none",resize:"vertical",minHeight:50,...style}}/>;
   if(e) return <input ref={r} value={d} onChange={ev=>setD(ev.target.value)} onBlur={commit}
     onKeyDown={ev=>{if(ev.key==="Enter")r.current.blur();if(ev.key==="Escape"){setE(false);setD(value);}}}
     style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#e0e6f0",fontSize:12.5,padding:"2px 8px",width:"100%",outline:"none",...style}}/>;
   return <span onClick={()=>setE(true)} title="Kattints a szerkesztéshez"
     style={{cursor:"text",borderBottom:"1px dashed #2a3347",paddingBottom:1,fontSize:12.5,color:"#b0b8cc",lineHeight:1.55,...style}}>
-    {value||<span style={{color:"#3a4555",fontStyle:"italic"}}>{placeholder}</span>}
-  </span>;
+    {value||<span style={{color:"#3a4555",fontStyle:"italic"}}>{placeholder}</span>}</span>;
 }
 
-function CheckItem({ label, checked, onToggle, onEdit, onDelete, accent }) {
+// ─── TASK ITEM ─────────────────────────────────────────────────
+function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) {
+  const isDone = task.status === "done";
+  const member = team.find(m=>m.id===task.assignee);
+  const statusObj = STATUSES.find(s=>s.id===task.status)||STATUSES[0];
+
   return (
-    <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:7,opacity:checked?0.38:1}}>
-      <div onClick={onToggle} style={{width:17,height:17,borderRadius:4,flexShrink:0,marginTop:2,border:`2px solid ${checked?accent:"#3a3f50"}`,background:checked?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s"}}>
-        {checked&&<span style={{fontSize:10,color:"#000",fontWeight:800}}>✓</span>}
+    <div style={{background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:isDone?0.45:1}}>
+      {/* Top row: checkbox + label */}
+      <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6}}>
+        <div onClick={onToggle} style={{width:17,height:17,borderRadius:4,flexShrink:0,marginTop:2,border:`2px solid ${isDone?accent:"#3a3f50"}`,background:isDone?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s"}}>
+          {isDone&&<span style={{fontSize:10,color:"#000",fontWeight:800}}>✓</span>}
+        </div>
+        <div style={{flex:1,textDecoration:isDone?"line-through":"none"}}>
+          <ETxt value={task.label} onSave={val=>onEdit("label",val)}/>
+          <DeadlineBadge deadline={task.deadline} status={task.status}/>
+        </div>
+        <button onClick={onDelete} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
       </div>
-      <div style={{flex:1,textDecoration:checked?"line-through":"none"}}><ETxt value={label} onSave={onEdit}/></div>
-      <button onClick={onDelete} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:"0 2px",lineHeight:1,flexShrink:0}}>×</button>
+
+      {/* Bottom row: assignee + status + deadline */}
+      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        {/* Assignee */}
+        <select value={task.assignee||""} onChange={e=>onEdit("assignee",e.target.value)}
+          style={{background:member?member.color+"22":"#161b27",border:`1px solid ${member?member.color+"55":"#252b3b"}`,color:member?member.color:"#4a5568",fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
+          <option value="">Felelős...</option>
+          {team.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+
+        {/* Status */}
+        <select value={task.status||"todo"} onChange={e=>onEdit("status",e.target.value)}
+          style={{background:statusObj.color+"22",border:`1px solid ${statusObj.color}55`,color:statusObj.color,fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
+          {STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+
+        {/* Deadline */}
+        <input type="date" value={task.deadline||""} onChange={e=>onEdit("deadline",e.target.value)}
+          style={{background:"#161b27",border:"1px solid #252b3b",color:"#4a5568",fontSize:10,padding:"2px 6px",borderRadius:6,outline:"none",cursor:"pointer"}}/>
+      </div>
     </div>
   );
 }
 
-function TaskSection({ title, items, accent, checks, month, type, onToggle, onEdit, onDelete, onAdd }) {
+// ─── TASK SECTION ──────────────────────────────────────────────
+function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDelete, onAdd, team }) {
   const [nw,setNw]=useState("");
   return (
     <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
       {title&&<div style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0",marginBottom:12}}>{title}</div>}
-      {(items||[]).map((item,i)=>(
-        <CheckItem key={i} label={item} checked={!!checks[`m${month}-${type}-${i}`]}
-          onToggle={()=>onToggle(`m${month}-${type}-${i}`)}
-          onEdit={val=>onEdit(month,type,i,val)}
+      {(items||[]).map((task,i)=>(
+        <TaskItem key={task.id||i} task={task} team={team} accent={accent}
+          onToggle={()=>onToggle(month,type,i)}
+          onEdit={(field,val)=>onEdit(month,type,i,field,val)}
           onDelete={()=>onDelete(month,type,i)}
-          accent={accent}/>
+          onUpdate={(field,val)=>onEdit(month,type,i,field,val)}/>
       ))}
       <div style={{display:"flex",gap:6,marginTop:10}}>
         <input value={nw} onChange={e=>setNw(e.target.value)}
@@ -183,6 +236,7 @@ function TaskSection({ title, items, accent, checks, month, type, onToggle, onEd
   );
 }
 
+// ─── SPARKLINE ─────────────────────────────────────────────────
 function Sparkline({ vals, color, height=36 }) {
   if(!vals||vals.length<2) return null;
   const max=Math.max(...vals),min=Math.min(...vals),range=max-min||1,w=100;
@@ -193,91 +247,149 @@ function Sparkline({ vals, color, height=36 }) {
   </svg>;
 }
 
+// ─── TEAM OVERVIEW ─────────────────────────────────────────────
+function TeamOverview({ tasks, team, selMonth }) {
+  const monthTasks = tasks[selMonth] || {};
+  const allTasks = Object.values(monthTasks).flat();
+
+  return (
+    <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
+      <div style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0",marginBottom:12}}>👥 Csapat – havi áttekintő</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {team.map(member=>{
+          const myTasks = allTasks.filter(t=>t.assignee===member.id);
+          const done = myTasks.filter(t=>t.status==="done").length;
+          const overdue = myTasks.filter(t=>t.deadline&&daysDiff(t.deadline)<0&&t.status!=="done").length;
+          const inprog = myTasks.filter(t=>t.status==="inprogress").length;
+          const review = myTasks.filter(t=>t.status==="review").length;
+          return (
+            <div key={member.id} style={{background:"#0d1117",border:`1px solid ${member.color}33`,borderRadius:10,padding:"12px 14px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:member.color}}>
+                  {member.name[0]}
+                </div>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{member.name}</div>
+                  <div style={{fontSize:10,color:"#4a5568"}}>{myTasks.length} feladat</div>
+                </div>
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {inprog>0&&<span style={{fontSize:10,background:"#08B7E422",color:"#08B7E4",padding:"2px 8px",borderRadius:10}}>🔵 {inprog} folyamatban</span>}
+                {review>0&&<span style={{fontSize:10,background:"#FA8C0522",color:"#FA8C05",padding:"2px 8px",borderRadius:10}}>🟡 {review} review</span>}
+                {done>0&&<span style={{fontSize:10,background:"#73AF1C22",color:"#73AF1C",padding:"2px 8px",borderRadius:10}}>✓ {done} kész</span>}
+                {overdue>0&&<span style={{fontSize:10,background:"#7f1d1d",color:"#f87171",padding:"2px 8px",borderRadius:10}}>⚠ {overdue} késik</span>}
+                {myTasks.length===0&&<span style={{fontSize:10,color:"#3a4555"}}>Nincs feladat</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN ──────────────────────────────────────────────────────
 export default function Dashboard() {
   const today = new Date();
   const [kpi,setKpi]                    = useState(DEFAULT_KPI);
   const [tasks,setTasks]                = useState(DEFAULT_TASKS);
-  const [checks,setChecks]              = useState({});
   const [daily,setDaily]                = useState({});
   const [personaSteps,setPersonaSteps]  = useState(DEFAULT_PERSONA_STEPS);
   const [questionnaire,setQuestionnaire]= useState(DEFAULT_QUESTIONNAIRE);
-  const [trafficChannels,setTrafficChannels]          = useState(DEFAULT_TRAFFIC_CHANNELS);
+  const [trafficChannels,setTrafficChannels] = useState(DEFAULT_TRAFFIC_CHANNELS);
   const [themes,setThemes]              = useState(DEFAULT_THEMES);
+  const [team,setTeam]                  = useState(DEFAULT_TEAM);
   const [selMonth,setSelMonth]          = useState(today.getMonth()+1);
   const [activeTab,setActiveTab]        = useState("tasks");
   const [showDataPanel,setShowDataPanel]= useState(false);
+  const [showTeamPanel,setShowTeamPanel]= useState(false);
   const [synced,setSynced]              = useState(false);
   const [syncStatus,setSyncStatus]      = useState("⟳ Csatlakozás...");
 
-  // ─ Firebase realtime listeners ─
+  // Firebase listeners
   useEffect(()=>{
     const unsubs = [
       onSnapshot(DOCS.kpi(),    s=>{ if(s.exists()) setKpi(JSON.parse(s.data().data)); }),
-      onSnapshot(DOCS.tasks(),  s=>{ if(s.exists()){ const d=JSON.parse(s.data().data); Object.keys(d).forEach(mo=>{if(!d[mo].content)d[mo].content=[...DEFAULT_CONTENT];}); setTasks(d); }}),
-      onSnapshot(DOCS.checks(), s=>{ if(s.exists()) setChecks(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.tasks(),  s=>{ if(s.exists()){ const d=JSON.parse(s.data().data); setTasks(d); }}),
       onSnapshot(DOCS.daily(),  s=>{ if(s.exists()) setDaily(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.persona(),s=>{ if(s.exists()) setPersonaSteps(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.quest(),  s=>{ if(s.exists()) setQuestionnaire(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.trafficChannels(),s=>{ if(s.exists()) setTrafficChannels(JSON.parse(s.data().data)); }),
-      onSnapshot(DOCS.themes(),  s=>{ if(s.exists()) setThemes(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.themes(), s=>{ if(s.exists()) setThemes(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.team(),   s=>{ if(s.exists()) setTeam(JSON.parse(s.data().data)); }),
     ];
-    setSynced(true);
-    setSyncStatus("✓ Szinkronizálva");
+    setSynced(true); setSyncStatus("✓ Szinkronizálva");
     return ()=>unsubs.forEach(u=>u());
   },[]);
 
-  // ─ Save helpers ─
-  const saveKpi      = v => { setKpi(v);           fbSave(DOCS.kpi(), v); };
-  const saveTasks    = v => { setTasks(v);          fbSave(DOCS.tasks(), v); };
-  const saveChecks   = v => { setChecks(v);         fbSave(DOCS.checks(), v); };
-  const saveDaily    = v => { setDaily(v);          fbSave(DOCS.daily(), v); };
-  const savePersona  = v => { setPersonaSteps(v);   fbSave(DOCS.persona(), v); };
-  const saveQuest    = v => { setQuestionnaire(v);  fbSave(DOCS.quest(), v); };
-  const saveTrafficChannels = v => { setTrafficChannels(v);       fbSave(DOCS.trafficChannels(), v); };
-  const saveThemes   = v => { setThemes(v);         fbSave(DOCS.themes(), v); };
+  const saveKpi      = v => { setKpi(v);            fbSave(DOCS.kpi(), v); };
+  const saveTasks    = v => { setTasks(v);           fbSave(DOCS.tasks(), v); };
+  const saveDaily    = v => { setDaily(v);           fbSave(DOCS.daily(), v); };
+  const savePersona  = v => { setPersonaSteps(v);    fbSave(DOCS.persona(), v); };
+  const saveQuest    = v => { setQuestionnaire(v);   fbSave(DOCS.quest(), v); };
+  const saveChannels = v => { setTrafficChannels(v); fbSave(DOCS.trafficChannels(), v); };
+  const saveThemes   = v => { setThemes(v);          fbSave(DOCS.themes(), v); };
+  const saveTeam     = v => { setTeam(v);            fbSave(DOCS.team(), v); };
 
-  // ─ Derived ─
-  const m   = kpi.find(k=>k.month===selMonth)||kpi[3];
-  const ph  = PHASE[m.phase]||PHASE["Építkezés"];
-  const actual = m.actual;
-  const target = m.target;
-  const pct  = actual!=null ? Math.round((actual/target)*100) : null;
-  const diff = actual!=null ? actual-target : null;
+  // KPI derived
+  const m    = kpi.find(k=>k.month===selMonth)||kpi[3];
+  const ph   = PHASE[m.phase]||PHASE["Építkezés"];
+  const actual = m.actual, target = m.target;
+  const pct  = actual!=null?Math.round((actual/target)*100):null;
+  const diff = actual!=null?actual-target:null;
   const qMs  = kpi.filter(k=>k.quarter===m.quarter);
   const qTgt = qMs.reduce((s,k)=>s+k.target,0);
   const qAct = qMs.filter(k=>k.actual!=null).reduce((s,k)=>s+k.actual,0);
   const dailyVals = Object.entries(daily)
-    .filter(([k])=>{ const [y,mo]=k.split("-"); return parseInt(y)===2026&&parseInt(mo)===selMonth; })
-    .sort(([a],[b])=>parseInt(a.split("-")[2])-parseInt(b.split("-")[2]))
-    .map(([,v])=>v);
+    .filter(([k])=>{ const[y,mo]=k.split("-"); return parseInt(y)===2026&&parseInt(mo)===selMonth; })
+    .sort(([a],[b])=>parseInt(a.split("-")[2])-parseInt(b.split("-")[2])).map(([,v])=>v);
   const dailySum = dailyVals.reduce((s,v)=>s+v,0);
   const todayKey = `2026-${today.getMonth()+1}-${today.getDate()}`;
   const todayVal = daily[todayKey]??null;
   const yearV = kpi.filter(k=>k.actual!=null).reduce((s,k)=>s+k.actual,0);
   const yearT = kpi.reduce((s,k)=>s+k.target,0);
 
-  // ─ Mutations ─
-  const updateKpi   = (mo,field,val) => saveKpi(kpi.map(k=>k.month===mo?{...k,[field]:val}:k));
-  const toggleCheck = key => { const n={...checks,[key]:!checks[key]}; saveChecks(n); };
-  const editTask    = (mo,type,idx,val) => { const n={...tasks};n[mo]={...n[mo]};n[mo][type]=[...(n[mo][type]||[])];n[mo][type][idx]=val; saveTasks(n); };
-  const deleteTask  = (mo,type,idx)    => { const n={...tasks};n[mo]={...n[mo]};n[mo][type]=(n[mo][type]||[]).filter((_,i)=>i!==idx); saveTasks(n); };
-  const addTask     = (mo,type,val)    => { const n={...tasks};if(!n[mo])n[mo]={persona:[],campaigns:[],other:[],content:[...DEFAULT_CONTENT]};n[mo]={...n[mo],[type]:[...(n[mo][type]||[]),val]}; saveTasks(n); };
-  const setDayVal   = (key,val)        => saveDaily({...daily,[key]:val});
-  const editStep    = (i,f,v) => savePersona(personaSteps.map((s,idx)=>idx===i?{...s,[f]:v}:s));
-  const editQ       = (i,f,v) => saveQuest(questionnaire.map((q,idx)=>idx===i?{...q,[f]:v}:q));
-  const editCh      = (i,f,v) => saveTrafficChannels(trafficChannels.map((c,idx)=>idx===i?{...c,[f]:v}:c));
+  // Task mutations
+  const toggleTask = (mo,type,idx) => {
+    const n={...tasks}; n[mo]={...n[mo]}; n[mo][type]=[...(n[mo][type]||[])];
+    const cur=n[mo][type][idx].status;
+    n[mo][type][idx]={...n[mo][type][idx], status: cur==="done"?"todo":"done"};
+    saveTasks(n);
+  };
+  const editTask = (mo,type,idx,field,val) => {
+    const n={...tasks}; n[mo]={...n[mo]}; n[mo][type]=[...(n[mo][type]||[])];
+    n[mo][type][idx]={...n[mo][type][idx],[field]:val};
+    saveTasks(n);
+  };
+  const deleteTask = (mo,type,idx) => {
+    const n={...tasks}; n[mo]={...n[mo]}; n[mo][type]=(n[mo][type]||[]).filter((_,i)=>i!==idx);
+    saveTasks(n);
+  };
+  const addTask = (mo,type,label) => {
+    const n={...tasks};
+    if(!n[mo])n[mo]={persona:[],campaigns:[],other:[],content:[]};
+    n[mo]={...n[mo],[type]:[...(n[mo][type]||[]),makeTask(label)]};
+    saveTasks(n);
+  };
+  const updateKpi  = (mo,field,val) => saveKpi(kpi.map(k=>k.month===mo?{...k,[field]:val}:k));
+  const setDayVal  = (key,val) => saveDaily({...daily,[key]:val});
+  const editStep   = (i,f,v) => savePersona(personaSteps.map((s,idx)=>idx===i?{...s,[f]:v}:s));
+  const editQ      = (i,f,v) => saveQuest(questionnaire.map((q,idx)=>idx===i?{...q,[f]:v}:q));
+  const editCh     = (i,f,v) => saveChannels(trafficChannels.map((c,idx)=>idx===i?{...c,[f]:v}:c));
 
   const t = tasks[selMonth]||{persona:[],campaigns:[],other:[],content:[]};
+
+  // Team colors for member color picker
+  const MEMBER_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b"];
 
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0d1117",minHeight:"100vh",color:"#c9d1e0"}}>
 
       {/* TOP BAR */}
       <div style={{background:"#1D384C",borderBottom:"1px solid #0d1f2e",padding:"10px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
-        <div style={{display:"flex",alignItems:"center",gap:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
           <img src="/blank__4_.png" alt="Furbify"
-            onError={e=>{ e.target.style.display="none"; e.target.nextSibling.style.display="block"; }}
+            onError={e=>{e.target.style.display="none";e.target.nextSibling.style.display="block";}}
             style={{height:32,objectFit:"contain"}}/>
           <span style={{display:"none",fontSize:17,fontWeight:800,color:"#73AF1C"}}>furbify</span>
           <div style={{width:1,height:24,background:"#2a4a5e"}}/>
@@ -295,11 +407,44 @@ export default function Dashboard() {
             <ENum value={todayVal} onSave={v=>setDayVal(todayKey,v)} placeholder="beírás" color={ph.accent} size={13}/>
             <span style={{fontSize:10,color:"#5a7a8e"}}>látogató</span>
           </div>
+          <button onClick={()=>setShowTeamPanel(s=>!s)} style={{fontSize:11,background:showTeamPanel?"#08B7E4":"#0d1f2e",border:`1px solid ${showTeamPanel?"#08B7E4":"#2a4a5e"}`,color:showTeamPanel?"#fff":"#5a7a8e",padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:showTeamPanel?700:400}}>
+            👥 Csapat
+          </button>
           <button onClick={()=>setShowDataPanel(s=>!s)} style={{fontSize:11,background:showDataPanel?"#73AF1C":"#0d1f2e",border:`1px solid ${showDataPanel?"#73AF1C":"#2a4a5e"}`,color:showDataPanel?"#fff":"#5a7a8e",padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:showDataPanel?700:400}}>
-            📊 Adatok szerkesztése
+            📊 Adatok
           </button>
         </div>
       </div>
+
+      {/* TEAM PANEL */}
+      {showTeamPanel&&(
+        <div style={{background:"#0d1f2e",borderBottom:"1px solid #1a3040",padding:"20px 32px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>👥 Csapattagok kezelése</div>
+            <button onClick={()=>saveTeam([...team,{id:"member_"+Date.now(),name:"Új tag",color:"#a78bfa"}])}
+              style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új tag</button>
+          </div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            {team.map((member,i)=>(
+              <div key={member.id} style={{background:"#161b27",border:`1px solid ${member.color}44`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,minWidth:200}}>
+                <div style={{width:36,height:36,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:member.color}}>
+                  {member.name[0]}
+                </div>
+                <div style={{flex:1}}>
+                  <ETxt value={member.name} onSave={val=>saveTeam(team.map((m,idx)=>idx===i?{...m,name:val}:m))} style={{fontSize:13,fontWeight:700,color:"#fff"}}/>
+                  <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
+                    {MEMBER_COLORS.map(c=>(
+                      <div key={c} onClick={()=>saveTeam(team.map((m,idx)=>idx===i?{...m,color:c}:m))}
+                        style={{width:16,height:16,borderRadius:"50%",background:c,cursor:"pointer",border:member.color===c?"2px solid #fff":"2px solid transparent"}}/>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={()=>saveTeam(team.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* DATA PANEL */}
       {showDataPanel&&(
@@ -316,11 +461,9 @@ export default function Dashboard() {
                   <ENum value={k.target} onSave={v=>updateKpi(k.month,"target",v)} color={ps.accent} size={13}/>
                   <div style={{fontSize:10,color:"#3a4555",marginTop:8,marginBottom:3}}>Tény:</div>
                   <ENum value={k.actual} onSave={v=>updateKpi(k.month,"actual",v)} placeholder="nincs adat" color="#34d399" size={13}/>
-                  {pct2!=null&&(
-                    <div style={{marginTop:6,background:"#252b3b",borderRadius:3,height:3,overflow:"hidden"}}>
-                      <div style={{height:"100%",background:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",width:`${Math.min(pct2,100)}%`}}/>
-                    </div>
-                  )}
+                  <div style={{fontSize:10,color:"#3a4555",marginTop:8,marginBottom:3}}>2025 tény:</div>
+                  <ENum value={k.prevYear} onSave={v=>updateKpi(k.month,"prevYear",v)} placeholder="beírás" color="#5a7a8e" size={13}/>
+                  {pct2!=null&&(<div style={{marginTop:6,background:"#252b3b",borderRadius:3,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",width:`${Math.min(pct2,100)}%`}}/></div>)}
                 </div>
               );
             })}
@@ -329,9 +472,7 @@ export default function Dashboard() {
             <div style={{fontSize:12,fontWeight:700,color:"#fff",marginBottom:12}}>Napi látogatók – {MONTH_NAMES[selMonth-1]}</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {Array.from({length:31},(_,i)=>{
-                const day=i+1;
-                const key=`2026-${selMonth}-${day}`;
-                const val=daily[key];
+                const day=i+1,key=`2026-${selMonth}-${day}`,val=daily[key];
                 const isToday=selMonth===today.getMonth()+1&&day===today.getDate();
                 return(
                   <div key={day} style={{background:val!=null?"#1a2535":"#0d1117",border:`1px solid ${isToday?ph.accent:val!=null?ph.accent+"44":"#1e2535"}`,borderRadius:6,padding:"6px 8px",minWidth:58,textAlign:"center"}}>
@@ -360,15 +501,12 @@ export default function Dashboard() {
         {/* MONTH TABS */}
         <div style={{display:"flex",gap:3,marginBottom:18,overflowX:"auto",paddingBottom:4,paddingTop:18}}>
           {kpi.map((k,idx)=>{
-            const ps=PHASE[k.phase]||PHASE["Építkezés"];
-            const isFirst=idx===0||kpi[idx-1].quarter!==k.quarter;
-            const sel=k.month===selMonth;
+            const ps=PHASE[k.phase]||PHASE["Építkezés"],isFirst=idx===0||kpi[idx-1].quarter!==k.quarter,sel=k.month===selMonth;
             return(
               <div key={k.month} style={{position:"relative",flexShrink:0}}>
                 {isFirst&&<div style={{position:"absolute",top:-16,left:0,fontSize:9,fontWeight:800,color:ps.accent,letterSpacing:1}}>Q{k.quarter}</div>}
                 <button onClick={()=>setSelMonth(k.month)} style={{background:sel?ps.accent:k.actual!=null?"#1a2535":"#161b27",color:sel?"#000":k.actual!=null?ps.accent:"#3a4555",border:`1px solid ${sel?ps.accent:k.actual!=null?ps.accent+"55":"#252b3b"}`,borderRadius:8,padding:"7px 11px",cursor:"pointer",fontSize:11.5,fontWeight:sel?800:500,transition:"all 0.15s",minWidth:52}}>
-                  {k.name.slice(0,3)}
-                  {k.actual!=null&&!sel&&<div style={{fontSize:8,marginTop:1}}>✓</div>}
+                  {k.name.slice(0,3)}{k.actual!=null&&!sel&&<div style={{fontSize:8,marginTop:1}}>✓</div>}
                 </button>
               </div>
             );
@@ -377,40 +515,44 @@ export default function Dashboard() {
 
         {/* KPI CARDS */}
         <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr",gap:12,marginBottom:12}}>
-
           {/* Main */}
           <div style={{background:"#161b27",border:`1px solid ${ph.accent}35`,borderRadius:14,padding:"20px 24px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-              <div>
-                <div style={{fontSize:11,color:"#3a4555",fontWeight:600,marginBottom:3}}>{m.name} · <span style={{color:ph.accent}}>{m.phase}</span> fázis</div>
-                <div style={{fontSize:42,fontWeight:800,color:actual!=null?"#fff":"#2a3347",letterSpacing:"-2px",lineHeight:1}}>
-                  <ENum value={actual} onSave={v=>updateKpi(selMonth,"actual",v)} placeholder="—" color="#fff" size={42}/>
-                </div>
-                <div style={{fontSize:11,color:"#3a4555",marginTop:3}}>
-                  {actual!=null?"tény látogató (kattints a szerkesztéshez)":"Kattints a '—' jelre az adat beírásához"}
-                </div>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
-                {pct!=null&&<div style={{background:pct>=100?"#064e3b":pct>=85?"#78350f":"#7f1d1d",color:pct>=100?"#34d399":pct>=85?"#fbbf24":"#f87171",fontWeight:800,fontSize:20,padding:"6px 16px",borderRadius:20}}>{pct}%</div>}
-                <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"8px 14px",textAlign:"right"}}>
-                  <div style={{fontSize:10,color:"#3a4555",marginBottom:2}}>Havi cél ✏️</div>
-                  <div style={{color:ph.accent}}><ENum value={target} onSave={v=>updateKpi(selMonth,"target",v)} color={ph.accent} size={20}/></div>
-                </div>
-              </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+              <div style={{fontSize:11,color:"#5a7a8e",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Webshop látogatók – {m.name}</div>
+              {pct!=null&&<div style={{background:pct>=100?"#064e3b":pct>=85?"#78350f":"#7f1d1d",color:pct>=100?"#34d399":pct>=85?"#fbbf24":"#f87171",fontWeight:800,fontSize:20,padding:"6px 16px",borderRadius:20}}>{pct}%</div>}
             </div>
+            <div style={{fontSize:42,fontWeight:800,color:actual!=null?"#fff":"#2a3347",letterSpacing:"-2px",lineHeight:1,marginBottom:4}}>
+              <ENum value={actual} onSave={v=>updateKpi(selMonth,"actual",v)} placeholder="—" color="#fff" size={42}/>
+            </div>
+            <div style={{fontSize:11,color:"#3a4555",marginBottom:14}}>{actual!=null?"látogató érkezett a webshopra ebben a hónapban":"Kattints a '—' jelre az adat beírásához"}</div>
             <div style={{background:"#252b3b",borderRadius:4,height:5,overflow:"hidden",marginBottom:6}}>
               <div style={{height:"100%",background:ph.accent,width:actual!=null?`${Math.min((actual/target)*100,100)}%`:"0%",transition:"width 0.6s ease"}}/>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#3a4555",marginBottom:dailyVals.length>0?14:0}}>
-              <span>Cél: {target.toLocaleString("hu")}</span>
-              {diff!=null&&<span style={{color:diff>=0?"#34d399":"#f87171",fontWeight:700}}>{diff>=0?"+":""}{diff.toLocaleString("hu")}</span>}
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#3a4555",marginBottom:14}}>
+              <span>Havi cél: {target.toLocaleString("hu")} látogató</span>
+              {diff!=null&&<span style={{color:diff>=0?"#34d399":"#f87171",fontWeight:700}}>{diff>=0?"+":""}{diff.toLocaleString("hu")} látogató</span>}
+            </div>
+            {/* 3 kis kártya */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+              <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Havi cél ✏️</div>
+                <ENum value={target} onSave={v=>updateKpi(selMonth,"target",v)} color={ph.accent} size={16}/>
+              </div>
+              <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>2025 {m.name} ✏️</div>
+                <ENum value={m.prevYear} onSave={v=>updateKpi(selMonth,"prevYear",v)} placeholder="beírás" color="#5a7a8e" size={16}/>
+              </div>
+              <div style={{background:"#0d1117",border:`1px solid ${ph.accent}33`,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Cél növekedés</div>
+                {m.prevYear!=null
+                  ? <div style={{fontSize:16,fontWeight:800,color:ph.accent}}>+{((target-m.prevYear)/m.prevYear*100).toFixed(1)}%<span style={{fontSize:9,color:"#3a4555",fontWeight:400,marginLeft:4}}>vs. 2025</span></div>
+                  : <div style={{fontSize:11,color:"#3a4555"}}>Írd be a 2025-ös adatot</div>
+                }
+              </div>
             </div>
             {dailyVals.length>1&&(
               <div style={{borderTop:"1px solid #1e2535",paddingTop:12,display:"flex",alignItems:"center",gap:16}}>
-                <div>
-                  <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Napi trend ({dailyVals.length} nap)</div>
-                  <Sparkline vals={dailyVals} color={ph.accent}/>
-                </div>
+                <div><div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Napi trend ({dailyVals.length} nap)</div><Sparkline vals={dailyVals} color={ph.accent}/></div>
                 <div><div style={{fontSize:10,color:"#3a4555"}}>Napi átlag</div><div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{Math.round(dailySum/dailyVals.length).toLocaleString("hu")}</div></div>
                 <div><div style={{fontSize:10,color:"#3a4555"}}>Napi összeg</div><div style={{fontSize:18,fontWeight:800,color:ph.accent}}>{dailySum.toLocaleString("hu")}</div></div>
                 {todayVal!=null&&<div><div style={{fontSize:10,color:"#3a4555"}}>Ma</div><div style={{fontSize:18,fontWeight:800,color:"#fbbf24"}}>{todayVal.toLocaleString("hu")}</div></div>}
@@ -424,11 +566,9 @@ export default function Dashboard() {
             <div style={{fontSize:28,fontWeight:800,color:"#fff",letterSpacing:"-1px"}}>{qTgt.toLocaleString("hu")}</div>
             <div style={{fontSize:11,color:"#3a4555",marginBottom:14}}>cél összesen</div>
             {qAct>0&&<><div style={{fontSize:20,fontWeight:800,color:"#34d399"}}>{qAct.toLocaleString("hu")}</div><div style={{fontSize:11,color:"#3a4555",marginBottom:10}}>tény · {Math.round((qAct/qTgt)*100)}%</div></>}
-            <div style={{background:"#252b3b",borderRadius:3,height:5,overflow:"hidden",marginBottom:16}}>
-              <div style={{height:"100%",background:ph.accent,width:qAct&&qTgt?`${Math.min((qAct/qTgt)*100,100)}%`:"0%"}}/>
-            </div>
+            <div style={{background:"#252b3b",borderRadius:3,height:5,overflow:"hidden",marginBottom:16}}><div style={{height:"100%",background:ph.accent,width:qAct&&qTgt?`${Math.min((qAct/qTgt)*100,100)}%`:"0%"}}/></div>
             {qMs.map(k=>{
-              const a=k.actual; const pct2=a!=null?Math.round((a/k.target)*100):null;
+              const a=k.actual,pct2=a!=null?Math.round((a/k.target)*100):null;
               return(
                 <div key={k.month} onClick={()=>setSelMonth(k.month)} style={{marginBottom:10,cursor:"pointer",opacity:k.month===selMonth?1:0.6}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
@@ -439,54 +579,40 @@ export default function Dashboard() {
                       {pct2!=null&&<span style={{fontSize:10,color:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",marginLeft:6,fontWeight:700}}>{pct2}%</span>}
                     </div>
                   </div>
-                  <div style={{background:"#252b3b",borderRadius:2,height:3,overflow:"hidden"}}>
-                    <div style={{height:"100%",background:pct2!=null?(pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171"):ph.accent+"33",width:a!=null?`${Math.min((a/k.target)*100,100)}%`:"0%"}}/>
-                  </div>
+                  <div style={{background:"#252b3b",borderRadius:2,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2!=null?(pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171"):ph.accent+"33",width:a!=null?`${Math.min((a/k.target)*100,100)}%`:"0%"}}/></div>
                 </div>
               );
             })}
           </div>
 
-          {/* Metrics */}
+          {/* Éves */}
           <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:14,padding:"20px 22px"}}>
             <div style={{fontSize:11,color:"#3a4555",fontWeight:600,marginBottom:12}}>Éves összesítés</div>
             {kpi.filter(k=>k.actual!=null).map(k=>{
-              const ps=PHASE[k.phase]||PHASE["Építkezés"];
-              const p=Math.round((k.actual/k.target)*100);
+              const ps=PHASE[k.phase]||PHASE["Építkezés"],p=Math.round((k.actual/k.target)*100);
               return(
                 <div key={k.month} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #1e2535"}}>
                   <span style={{fontSize:11,color:"#4a5568"}}>{k.name}</span>
-                  <div style={{textAlign:"right"}}>
-                    <span style={{fontSize:12,fontWeight:700,color:"#fff"}}>{k.actual.toLocaleString("hu")}</span>
-                    <span style={{fontSize:10,color:p>=100?"#34d399":p>=85?"#fbbf24":"#f87171",marginLeft:6}}>{p}%</span>
-                  </div>
+                  <div><span style={{fontSize:12,fontWeight:700,color:"#fff"}}>{k.actual.toLocaleString("hu")}</span><span style={{fontSize:10,color:p>=100?"#34d399":p>=85?"#fbbf24":"#f87171",marginLeft:6}}>{p}%</span></div>
                 </div>
               );
             })}
             {kpi.filter(k=>k.actual!=null).length===0&&<div style={{fontSize:12,color:"#2a3347",textAlign:"center",paddingTop:20}}>Még nincs tény adat</div>}
           </div>
-
-          {/* 2026-os témák – NEM kerül ide, lentebb lesz */}
-
         </div>
 
-        {/* 2026-OS TÉMÁK – teljes szélességű box */}
+        {/* TÉMÁK */}
         <div style={{background:"#161b27",border:"1px solid #08B7E444",borderRadius:14,padding:"16px 22px",marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:13,fontWeight:700,color:"#e0e6f0"}}>🎯 2026-os stratégiai témák</div>
-            <button onClick={()=>saveThemes([...themes,"Új téma..."])}
-              style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700,flexShrink:0}}>+ Új téma</button>
+            <button onClick={()=>saveThemes([...themes,"Új téma..."])} style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új téma</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
             {themes.map((theme,i)=>(
               <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:"#08B7E4",flexShrink:0,marginTop:5}}/>
-                <div style={{flex:1}}>
-                  <ETxt value={theme} onSave={val=>saveThemes(themes.map((th,idx)=>idx===i?val:th))}
-                    style={{fontSize:12.5,color:"#b0b8cc",lineHeight:1.5}}/>
-                </div>
-                <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))}
-                  style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
+                <div style={{flex:1}}><ETxt value={theme} onSave={val=>saveThemes(themes.map((th,idx)=>idx===i?val:th))} style={{fontSize:12.5,color:"#b0b8cc",lineHeight:1.5}}/></div>
+                <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
               </div>
             ))}
           </div>
@@ -501,11 +627,14 @@ export default function Dashboard() {
 
         {/* FELADATOK */}
         {activeTab==="tasks"&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <TaskSection title="👤 Persona kutatás" items={t.persona} accent="#08B7E4" checks={checks} month={selMonth} type="persona" onToggle={toggleCheck} onEdit={editTask} onDelete={deleteTask} onAdd={addTask}/>
-            <TaskSection title="📣 Kampányok" items={t.campaigns} accent={ph.accent} checks={checks} month={selMonth} type="campaigns" onToggle={toggleCheck} onEdit={editTask} onDelete={deleteTask} onAdd={addTask}/>
-            <TaskSection title="📧 Hírlevelek" items={t.other} accent="#FA8C05" checks={checks} month={selMonth} type="other" onToggle={toggleCheck} onEdit={editTask} onDelete={deleteTask} onAdd={addTask}/>
-            <TaskSection title="🎬 Content kötelező" items={t.content||DEFAULT_CONTENT} accent="#73AF1C" checks={checks} month={selMonth} type="content" onToggle={toggleCheck} onEdit={editTask} onDelete={deleteTask} onAdd={addTask}/>
+          <div>
+            <TeamOverview tasks={tasks} team={team} selMonth={selMonth}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <TaskSection title="👤 Persona kutatás" items={t.persona} accent="#08B7E4" month={selMonth} type="persona" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              <TaskSection title="📣 Kampányok" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              <TaskSection title="📧 Hírlevelek" items={t.other} accent="#FA8C05" month={selMonth} type="other" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              <TaskSection title="🎬 Content kötelező" items={t.content} accent="#73AF1C" month={selMonth} type="content" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+            </div>
           </div>
         )}
 
@@ -564,12 +693,12 @@ export default function Dashboard() {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>📡 Forgalomterelő csatornák</div>
-              <button onClick={()=>saveTrafficChannels([...trafficChannels,{ch:"Új csatorna",mix:"Mix",tip:"Leírás...",color:"#6b7280"}])} style={{background:"#34d39922",border:"1px dashed #34d39955",color:"#34d399",fontSize:11,padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új csatorna</button>
+              <button onClick={()=>saveChannels([...trafficChannels,{ch:"Új csatorna",mix:"Mix",tip:"Leírás...",color:"#6b7280"}])} style={{background:"#34d39922",border:"1px dashed #34d39955",color:"#34d399",fontSize:11,padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új csatorna</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
               {trafficChannels.map((item,i)=>(
                 <div key={i} style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"14px 16px",position:"relative"}}>
-                  <button onClick={()=>saveTrafficChannels(trafficChannels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+                  <button onClick={()=>saveChannels(trafficChannels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
                     <input type="color" value={item.color} onChange={e=>editCh(i,"color",e.target.value)} style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",padding:0,flexShrink:0}}/>
                     <ETxt value={item.ch} onSave={val=>editCh(i,"ch",val)} style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0"}}/>
@@ -581,7 +710,7 @@ export default function Dashboard() {
             </div>
             <div style={{background:"#161b27",border:`1px solid ${ph.accent}30`,borderRadius:14,padding:"18px 22px"}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:12}}>🎯 Kampánytervek</div>
-              <TaskSection title="" items={t.campaigns} accent={ph.accent} checks={checks} month={selMonth} type="campaigns" onToggle={toggleCheck} onEdit={editTask} onDelete={deleteTask} onAdd={addTask}/>
+              <TaskSection title="" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
             </div>
           </div>
         )}
