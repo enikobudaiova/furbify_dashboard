@@ -22,7 +22,7 @@ const DEFAULT_TEAM = [
 ];
 
 const STATUSES = [
-  { id:"todo",       label:"Tervezés",    color:"#4a5568" },
+  { id:"todo",       label:"Tervezés",    color:"#99aacc" },
   { id:"inprogress", label:"Folyamatban", color:"#08B7E4" },
   { id:"review",     label:"Review",      color:"#FA8C05" },
   { id:"done",       label:"Kész",        color:"#73AF1C" },
@@ -138,7 +138,7 @@ function DeadlineBadge({ deadline, status }) {
   if (d === null) return null;
   if (d < 0) return <span style={{fontSize:10,background:"#7f1d1d",color:"#f87171",padding:"1px 7px",borderRadius:10,marginLeft:4,fontWeight:700}}>{Math.abs(d)} napja késik</span>;
   if (d <= 3) return <span style={{fontSize:10,background:"#78350f",color:"#fbbf24",padding:"1px 7px",borderRadius:10,marginLeft:4,fontWeight:700}}>{d === 0 ? "Ma esedékes" : `${d} nap`}</span>;
-  return <span style={{fontSize:10,background:"#1a2535",color:"#5a7a8e",padding:"1px 7px",borderRadius:10,marginLeft:4}}>{new Date(deadline).toLocaleDateString("hu")}</span>;
+  return <span style={{fontSize:10,background:"#1e2d40",color:"#99bbcc",padding:"1px 7px",borderRadius:10,marginLeft:4}}>{new Date(deadline).toLocaleDateString("hu")}</span>;
 }
 
 // ─── EDITABLE COMPONENTS ───────────────────────────────────────
@@ -148,9 +148,9 @@ function ENum({ value, onSave, placeholder="—", color="#fff", size=20 }) {
   if(e) return <input ref={r} value={d} onChange={ev=>setD(ev.target.value)}
     onBlur={()=>{setE(false);const n=parseInt(d.replace(/[\s\u00a0]/g,""));if(!isNaN(n))onSave(n);else onSave(null);}}
     onKeyDown={ev=>{if(ev.key==="Enter")r.current.blur();if(ev.key==="Escape"){setE(false);setD(value!=null?String(value):"");}}}
-    style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#fff",fontSize:size,fontWeight:800,width:140,outline:"none",padding:"0 6px"}}/>;
+    style={{background:"#2a3448",border:"1px solid #34d399",borderRadius:4,color:"#fff",fontSize:size,fontWeight:800,width:140,outline:"none",padding:"0 6px"}}/>;
   return <span onClick={()=>{setE(true);setD(value!=null?String(value):"");}} title="Kattints a szerkesztéshez"
-    style={{cursor:"text",color:value!=null?color:"#3a4555",borderBottom:"1px dashed #3a4555",paddingBottom:1,fontSize:size,fontWeight:800}}>
+    style={{cursor:"text",color:value!=null?color:"#8899bb",borderBottom:"1px dashed #3a4555",paddingBottom:1,fontSize:size,fontWeight:800}}>
     {value!=null?value.toLocaleString("hu"):placeholder}</span>;
 }
 
@@ -159,13 +159,13 @@ function ETxt({ value, onSave, placeholder="", multiline=false, style={} }) {
   useEffect(()=>{if(e)r.current?.focus();},[e]);
   const commit=()=>{setE(false);if(d.trim())onSave(d.trim());else onSave(value);};
   if(e&&multiline) return <textarea ref={r} value={d} onChange={ev=>setD(ev.target.value)} onBlur={commit}
-    style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#e0e6f0",fontSize:12,padding:"4px 8px",width:"100%",outline:"none",resize:"vertical",minHeight:50,...style}}/>;
+    style={{background:"#2a3448",border:"1px solid #34d399",borderRadius:4,color:"#eef2fc",fontSize:12,padding:"4px 8px",width:"100%",outline:"none",resize:"vertical",minHeight:50,...style}}/>;
   if(e) return <input ref={r} value={d} onChange={ev=>setD(ev.target.value)} onBlur={commit}
     onKeyDown={ev=>{if(ev.key==="Enter")r.current.blur();if(ev.key==="Escape"){setE(false);setD(value);}}}
-    style={{background:"#252b3b",border:"1px solid #34d399",borderRadius:4,color:"#e0e6f0",fontSize:12.5,padding:"2px 8px",width:"100%",outline:"none",...style}}/>;
+    style={{background:"#2a3448",border:"1px solid #34d399",borderRadius:4,color:"#eef2fc",fontSize:12.5,padding:"2px 8px",width:"100%",outline:"none",...style}}/>;
   return <span onClick={()=>setE(true)} title="Kattints a szerkesztéshez"
-    style={{cursor:"text",borderBottom:"1px dashed #2a3347",paddingBottom:1,fontSize:12.5,color:"#b0b8cc",lineHeight:1.55,...style}}>
-    {value||<span style={{color:"#3a4555",fontStyle:"italic"}}>{placeholder}</span>}</span>;
+    style={{cursor:"text",borderBottom:"1px dashed #2a3347",paddingBottom:1,fontSize:12.5,color:"#d0daf0",lineHeight:1.55,...style}}>
+    {value||<span style={{color:"#8899bb",fontStyle:"italic"}}>{placeholder}</span>}</span>;
 }
 
 // ─── TASK ITEM ─────────────────────────────────────────────────
@@ -175,7 +175,7 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
   const statusObj = STATUSES.find(s=>s.id===task.status)||STATUSES[0];
 
   return (
-    <div style={{background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:isDone?0.45:1}}>
+    <div style={{background:"#0d1520",border:"1px solid #263045",borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:isDone?0.45:1}}>
       {/* Top row: checkbox + label */}
       <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6}}>
         <div onClick={onToggle} style={{width:17,height:17,borderRadius:4,flexShrink:0,marginTop:2,border:`2px solid ${isDone?accent:"#3a3f50"}`,background:isDone?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s"}}>
@@ -185,14 +185,14 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
           <ETxt value={task.label} onSave={val=>onEdit("label",val)}/>
           <DeadlineBadge deadline={task.deadline} status={task.status}/>
         </div>
-        <button onClick={onDelete} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
+        <button onClick={onDelete} style={{background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
       </div>
 
       {/* Bottom row: assignee + status + deadline */}
       <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
         {/* Assignee */}
         <select value={task.assignee||""} onChange={e=>onEdit("assignee",e.target.value)}
-          style={{background:member?member.color+"22":"#161b27",border:`1px solid ${member?member.color+"55":"#252b3b"}`,color:member?member.color:"#4a5568",fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
+          style={{background:member?member.color+"22":"#161b27",border:`1px solid ${member?member.color+"55":"#252b3b"}`,color:member?member.color:"#99aacc",fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
           <option value="">Felelős...</option>
           {team.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
@@ -205,7 +205,7 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
 
         {/* Deadline */}
         <input type="date" value={task.deadline||""} onChange={e=>onEdit("deadline",e.target.value)}
-          style={{background:"#161b27",border:"1px solid #252b3b",color:"#4a5568",fontSize:10,padding:"2px 6px",borderRadius:6,outline:"none",cursor:"pointer"}}/>
+          style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#99aacc",fontSize:10,padding:"2px 6px",borderRadius:6,outline:"none",cursor:"pointer"}}/>
       </div>
     </div>
   );
@@ -215,8 +215,8 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
 function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDelete, onAdd, team }) {
   const [nw,setNw]=useState("");
   return (
-    <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
-      {title&&<div style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0",marginBottom:12}}>{title}</div>}
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
+      {title&&<div style={{fontSize:12.5,fontWeight:700,color:"#eef2fc",marginBottom:12}}>{title}</div>}
       {(items||[]).map((task,i)=>(
         <TaskItem key={task.id||i} task={task} team={team} accent={accent}
           onToggle={()=>onToggle(month,type,i)}
@@ -228,7 +228,7 @@ function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDe
         <input value={nw} onChange={e=>setNw(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter"&&nw.trim()){onAdd(month,type,nw.trim());setNw("");}}}
           placeholder="+ Új feladat..."
-          style={{flex:1,background:"#0d1117",border:"1px solid #1e2535",borderRadius:6,color:"#9aa3b5",fontSize:12,padding:"6px 10px",outline:"none"}}/>
+          style={{flex:1,background:"#0d1520",border:"1px solid #263045",borderRadius:6,color:"#c0ccdd",fontSize:12,padding:"6px 10px",outline:"none"}}/>
         <button onClick={()=>{if(nw.trim()){onAdd(month,type,nw.trim());setNw("");}}}
           style={{background:accent+"22",border:`1px solid ${accent}44`,color:accent,fontSize:13,padding:"6px 14px",borderRadius:6,cursor:"pointer",fontWeight:800}}>+</button>
       </div>
@@ -257,7 +257,7 @@ function GrowthField({ prevYear, target, accent, onChangeTarget }) {
           }
         }}
         onKeyDown={e=>{ if(e.key==="Enter") r.current.blur(); if(e.key==="Escape") setEditing(false); }}
-        style={{background:"#252b3b",border:`1px solid ${accent}`,borderRadius:4,color:"#fff",fontSize:16,fontWeight:800,width:60,outline:"none",padding:"0 4px"}}
+        style={{background:"#2a3448",border:`1px solid ${accent}`,borderRadius:4,color:"#fff",fontSize:16,fontWeight:800,width:60,outline:"none",padding:"0 4px"}}
       />
       <span style={{fontSize:12,color:accent,fontWeight:800}}>%</span>
     </div>
@@ -269,7 +269,7 @@ function GrowthField({ prevYear, target, accent, onChangeTarget }) {
       <div style={{fontSize:16,fontWeight:800,color:accent}}>
         {currentPct >= 0 ? "+" : ""}{currentPct.toFixed(1)}%
       </div>
-      <div style={{fontSize:9,color:"#3a4555",marginTop:2}}>
+      <div style={{fontSize:9,color:"#8899bb",marginTop:2}}>
         = {Math.round(prevYear*(1+currentPct/100)).toLocaleString("hu")} látogató
       </div>
     </div>
@@ -293,8 +293,8 @@ function TeamOverview({ tasks, team, selMonth }) {
   const allTasks = Object.values(monthTasks).flat();
 
   return (
-    <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
-      <div style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0",marginBottom:12}}>👥 Csapat – havi áttekintő</div>
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
+      <div style={{fontSize:12.5,fontWeight:700,color:"#eef2fc",marginBottom:12}}>👥 Csapat – havi áttekintő</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
         {team.map(member=>{
           const myTasks = allTasks.filter(t=>t.assignee===member.id);
@@ -303,14 +303,14 @@ function TeamOverview({ tasks, team, selMonth }) {
           const inprog = myTasks.filter(t=>t.status==="inprogress").length;
           const review = myTasks.filter(t=>t.status==="review").length;
           return (
-            <div key={member.id} style={{background:"#0d1117",border:`1px solid ${member.color}33`,borderRadius:10,padding:"12px 14px"}}>
+            <div key={member.id} style={{background:"#0d1520",border:`1px solid ${member.color}33`,borderRadius:10,padding:"12px 14px"}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:32,height:32,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:member.color}}>
                   {member.name[0]}
                 </div>
                 <div>
                   <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{member.name}</div>
-                  <div style={{fontSize:10,color:"#4a5568"}}>{myTasks.length} feladat</div>
+                  <div style={{fontSize:10,color:"#99aacc"}}>{myTasks.length} feladat</div>
                 </div>
               </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
@@ -318,7 +318,7 @@ function TeamOverview({ tasks, team, selMonth }) {
                 {review>0&&<span style={{fontSize:10,background:"#FA8C0522",color:"#FA8C05",padding:"2px 8px",borderRadius:10}}>🟡 {review} review</span>}
                 {done>0&&<span style={{fontSize:10,background:"#73AF1C22",color:"#73AF1C",padding:"2px 8px",borderRadius:10}}>✓ {done} kész</span>}
                 {overdue>0&&<span style={{fontSize:10,background:"#7f1d1d",color:"#f87171",padding:"2px 8px",borderRadius:10}}>⚠ {overdue} késik</span>}
-                {myTasks.length===0&&<span style={{fontSize:10,color:"#3a4555"}}>Nincs feladat</span>}
+                {myTasks.length===0&&<span style={{fontSize:10,color:"#8899bb"}}>Nincs feladat</span>}
               </div>
             </div>
           );
@@ -423,7 +423,7 @@ export default function Dashboard() {
   const MEMBER_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b"];
 
   return (
-    <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0d1117",minHeight:"100vh",color:"#c9d1e0"}}>
+    <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#0d1520",minHeight:"100vh",color:"#dde5f4"}}>
 
       {/* TOP BAR */}
       <div style={{background:"#1D384C",borderBottom:"1px solid #0d1f2e",padding:"10px 32px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
@@ -433,19 +433,19 @@ export default function Dashboard() {
             style={{height:32,objectFit:"contain"}}/>
           <span style={{display:"none",fontSize:17,fontWeight:800,color:"#73AF1C"}}>furbify</span>
           <div style={{width:1,height:24,background:"#2a4a5e"}}/>
-          <span style={{fontSize:10,color:"#5a7a8e",fontWeight:700,letterSpacing:2}}>MARKETING · 2026</span>
-          {yearV>0&&<div style={{fontSize:11,color:"#5a7a8e",background:"#0d1f2e",padding:"4px 12px",borderRadius:20,border:"1px solid #2a4a5e"}}>
-            Éves tény: <b style={{color:"#73AF1C"}}>{yearV.toLocaleString("hu")}</b> <span style={{color:"#3a5a6e"}}>/ {yearT.toLocaleString("hu")}</span>
+          <span style={{fontSize:10,color:"#99bbcc",fontWeight:700,letterSpacing:2}}>MARKETING · 2026</span>
+          {yearV>0&&<div style={{fontSize:11,color:"#99bbcc",background:"#0f1e2d",padding:"4px 12px",borderRadius:20,border:"1px solid #2a4a5e"}}>
+            Éves tény: <b style={{color:"#73AF1C"}}>{yearV.toLocaleString("hu")}</b> <span style={{color:"#7a9ab8"}}>/ {yearT.toLocaleString("hu")}</span>
           </div>}
-          <div style={{fontSize:10,color:synced?"#73AF1C":"#FA8C05",background:"#0d1f2e",padding:"3px 10px",borderRadius:20,border:`1px solid ${synced?"#73AF1C44":"#FA8C0544"}`}}>
+          <div style={{fontSize:10,color:synced?"#73AF1C":"#FA8C05",background:"#0f1e2d",padding:"3px 10px",borderRadius:20,border:`1px solid ${synced?"#73AF1C44":"#FA8C0544"}`}}>
             {syncStatus}
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,background:"#0d1f2e",border:`1px solid ${ph.accent}66`,borderRadius:8,padding:"5px 14px"}}>
-            <span style={{fontSize:10,color:"#5a7a8e",fontWeight:600}}>Ma ({today.getDate()}/{today.getMonth()+1}):</span>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:"#0f1e2d",border:`1px solid ${ph.accent}66`,borderRadius:8,padding:"5px 14px"}}>
+            <span style={{fontSize:10,color:"#99bbcc",fontWeight:600}}>Ma ({today.getDate()}/{today.getMonth()+1}):</span>
             <ENum value={todayVal} onSave={v=>setDayVal(todayKey,v)} placeholder="beírás" color={ph.accent} size={13}/>
-            <span style={{fontSize:10,color:"#5a7a8e"}}>látogató</span>
+            <span style={{fontSize:10,color:"#99bbcc"}}>látogató</span>
           </div>
           <button onClick={()=>setShowTeamPanel(s=>!s)} style={{fontSize:11,background:showTeamPanel?"#08B7E4":"#0d1f2e",border:`1px solid ${showTeamPanel?"#08B7E4":"#2a4a5e"}`,color:showTeamPanel?"#fff":"#5a7a8e",padding:"5px 14px",borderRadius:6,cursor:"pointer",fontWeight:showTeamPanel?700:400}}>
             👥 Csapat
@@ -458,7 +458,7 @@ export default function Dashboard() {
 
       {/* TEAM PANEL */}
       {showTeamPanel&&(
-        <div style={{background:"#0d1f2e",borderBottom:"1px solid #1a3040",padding:"20px 32px"}}>
+        <div style={{background:"#0f1e2d",borderBottom:"1px solid #1a3040",padding:"20px 32px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>👥 Csapattagok kezelése</div>
             <button onClick={()=>saveTeam([...team,{id:"member_"+Date.now(),name:"Új tag",color:"#a78bfa"}])}
@@ -466,7 +466,7 @@ export default function Dashboard() {
           </div>
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
             {team.map((member,i)=>(
-              <div key={member.id} style={{background:"#161b27",border:`1px solid ${member.color}44`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,minWidth:200}}>
+              <div key={member.id} style={{background:"#1a2235",border:`1px solid ${member.color}44`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,minWidth:200}}>
                 <div style={{width:36,height:36,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,color:member.color}}>
                   {member.name[0]}
                 </div>
@@ -479,7 +479,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 </div>
-                <button onClick={()=>saveTeam(team.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+                <button onClick={()=>saveTeam(team.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:15,padding:0}}>×</button>
               </div>
             ))}
           </div>
@@ -488,22 +488,22 @@ export default function Dashboard() {
 
       {/* DATA PANEL */}
       {showDataPanel&&(
-        <div style={{background:"#0d1f2e",borderBottom:"1px solid #1a3040",padding:"20px 32px"}}>
+        <div style={{background:"#0f1e2d",borderBottom:"1px solid #1a3040",padding:"20px 32px"}}>
           <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:16}}>📊 Havi adatok kézi szerkesztése</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:20}}>
             {kpi.map(k=>{
               const ps=PHASE[k.phase]||PHASE["Építkezés"];
               const pct2=k.actual!=null?Math.round((k.actual/k.target)*100):null;
               return(
-                <div key={k.month} style={{background:"#0d1117",border:`1px solid ${k.month===selMonth?ps.accent:"#1e2535"}`,borderRadius:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>setSelMonth(k.month)}>
+                <div key={k.month} style={{background:"#0d1520",border:`1px solid ${k.month===selMonth?ps.accent:"#1e2535"}`,borderRadius:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>setSelMonth(k.month)}>
                   <div style={{fontSize:10,fontWeight:700,color:ps.accent,marginBottom:6}}>{k.name}</div>
-                  <div style={{fontSize:10,color:"#3a4555",marginBottom:3}}>Cél:</div>
+                  <div style={{fontSize:10,color:"#8899bb",marginBottom:3}}>Cél:</div>
                   <ENum value={k.target} onSave={v=>updateKpi(k.month,"target",v)} color={ps.accent} size={13}/>
-                  <div style={{fontSize:10,color:"#3a4555",marginTop:8,marginBottom:3}}>Tény:</div>
+                  <div style={{fontSize:10,color:"#8899bb",marginTop:8,marginBottom:3}}>Tény:</div>
                   <ENum value={k.actual} onSave={v=>updateKpi(k.month,"actual",v)} placeholder="nincs adat" color="#34d399" size={13}/>
-                  <div style={{fontSize:10,color:"#3a4555",marginTop:8,marginBottom:3}}>2025 tény:</div>
+                  <div style={{fontSize:10,color:"#8899bb",marginTop:8,marginBottom:3}}>2025 tény:</div>
                   <ENum value={k.prevYear} onSave={v=>updateKpi(k.month,"prevYear",v)} placeholder="beírás" color="#5a7a8e" size={13}/>
-                  {pct2!=null&&(<div style={{marginTop:6,background:"#252b3b",borderRadius:3,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",width:`${Math.min(pct2,100)}%`}}/></div>)}
+                  {pct2!=null&&(<div style={{marginTop:6,background:"#2a3448",borderRadius:3,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",width:`${Math.min(pct2,100)}%`}}/></div>)}
                 </div>
               );
             })}
@@ -516,15 +516,15 @@ export default function Dashboard() {
                 const isToday=selMonth===today.getMonth()+1&&day===today.getDate();
                 return(
                   <div key={day} style={{background:val!=null?"#1a2535":"#0d1117",border:`1px solid ${isToday?ph.accent:val!=null?ph.accent+"44":"#1e2535"}`,borderRadius:6,padding:"6px 8px",minWidth:58,textAlign:"center"}}>
-                    <div style={{fontSize:9,color:"#3a4555",marginBottom:2}}>{day}.</div>
+                    <div style={{fontSize:9,color:"#8899bb",marginBottom:2}}>{day}.</div>
                     <ENum value={val} onSave={v=>setDayVal(key,v)} placeholder="—" color={ph.accent} size={11}/>
                   </div>
                 );
               })}
             </div>
             {dailyVals.length>0&&(
-              <div style={{marginTop:10,fontSize:11,color:"#4a5568"}}>
-                Beírt napok összege: <b style={{color:"#9aa3b5"}}>{dailySum.toLocaleString("hu")}</b>
+              <div style={{marginTop:10,fontSize:11,color:"#99aacc"}}>
+                Beírt napok összege: <b style={{color:"#c0ccdd"}}>{dailySum.toLocaleString("hu")}</b>
                 {actual!=null&&<span> · Havi tény: <b style={{color:"#34d399"}}>{actual.toLocaleString("hu")}</b></span>}
                 <button onClick={()=>updateKpi(selMonth,"actual",dailySum)}
                   style={{marginLeft:12,background:"#34d39922",border:"1px solid #34d39944",color:"#34d399",fontSize:10,padding:"3px 10px",borderRadius:6,cursor:"pointer",fontWeight:700}}>
@@ -556,34 +556,34 @@ export default function Dashboard() {
         {/* KPI CARDS */}
         <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr",gap:12,marginBottom:12}}>
           {/* Main */}
-          <div style={{background:"#161b27",border:`1px solid ${ph.accent}35`,borderRadius:14,padding:"20px 24px"}}>
+          <div style={{background:"#1a2235",border:`1px solid ${ph.accent}35`,borderRadius:14,padding:"20px 24px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-              <div style={{fontSize:11,color:"#5a7a8e",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Webshop látogatók – {m.name}</div>
+              <div style={{fontSize:11,color:"#99bbcc",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>Webshop látogatók – {m.name}</div>
               {pct!=null&&<div style={{background:pct>=100?"#064e3b":pct>=85?"#78350f":"#7f1d1d",color:pct>=100?"#34d399":pct>=85?"#fbbf24":"#f87171",fontWeight:800,fontSize:20,padding:"6px 16px",borderRadius:20}}>{pct}%</div>}
             </div>
             <div style={{fontSize:42,fontWeight:800,color:actual!=null?"#fff":"#2a3347",letterSpacing:"-2px",lineHeight:1,marginBottom:4}}>
               <ENum value={actual} onSave={v=>updateKpi(selMonth,"actual",v)} placeholder="—" color="#fff" size={42}/>
             </div>
-            <div style={{fontSize:11,color:"#3a4555",marginBottom:14}}>{actual!=null?"látogató érkezett a webshopra ebben a hónapban":"Kattints a '—' jelre az adat beírásához"}</div>
-            <div style={{background:"#252b3b",borderRadius:4,height:5,overflow:"hidden",marginBottom:6}}>
+            <div style={{fontSize:11,color:"#8899bb",marginBottom:14}}>{actual!=null?"látogató érkezett a webshopra ebben a hónapban":"Kattints a '—' jelre az adat beírásához"}</div>
+            <div style={{background:"#2a3448",borderRadius:4,height:5,overflow:"hidden",marginBottom:6}}>
               <div style={{height:"100%",background:ph.accent,width:actual!=null?`${Math.min((actual/target)*100,100)}%`:"0%",transition:"width 0.6s ease"}}/>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#3a4555",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#8899bb",marginBottom:14}}>
               <span>Havi cél: {target.toLocaleString("hu")} látogató</span>
               {diff!=null&&<span style={{color:diff>=0?"#34d399":"#f87171",fontWeight:700}}>{diff>=0?"+":""}{diff.toLocaleString("hu")} látogató</span>}
             </div>
             {/* 3 kis kártya + növekedés kalkulátor */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-              <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Havi cél ✏️</div>
+              <div style={{background:"#0d1520",border:"1px solid #2e3a50",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>Havi cél ✏️</div>
                 <ENum value={target} onSave={v=>updateKpi(selMonth,"target",v)} color={ph.accent} size={16}/>
               </div>
-              <div style={{background:"#0d1117",border:"1px solid #252b3b",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>2025 {m.name} ✏️</div>
+              <div style={{background:"#0d1520",border:"1px solid #2e3a50",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>2025 {m.name} ✏️</div>
                 <ENum value={m.prevYear} onSave={v=>updateKpi(selMonth,"prevYear",v)} placeholder="beírás" color="#5a7a8e" size={16}/>
               </div>
-              <div style={{background:"#0d1117",border:`1px solid ${ph.accent}33`,borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Cél növekedés ✏️</div>
+              <div style={{background:"#0d1520",border:`1px solid ${ph.accent}33`,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>Cél növekedés ✏️</div>
                 {m.prevYear!=null ? (
                   <div>
                     <GrowthField
@@ -594,27 +594,27 @@ export default function Dashboard() {
                     />
                   </div>
                 ) : (
-                  <div style={{fontSize:11,color:"#3a4555"}}>Írd be a 2025-ös adatot</div>
+                  <div style={{fontSize:11,color:"#8899bb"}}>Írd be a 2025-ös adatot</div>
                 )}
               </div>
             </div>
             {dailyVals.length>1&&(
               <div style={{borderTop:"1px solid #1e2535",paddingTop:12,display:"flex",alignItems:"center",gap:16}}>
-                <div><div style={{fontSize:10,color:"#3a4555",marginBottom:4}}>Napi trend ({dailyVals.length} nap)</div><Sparkline vals={dailyVals} color={ph.accent}/></div>
-                <div><div style={{fontSize:10,color:"#3a4555"}}>Napi átlag</div><div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{Math.round(dailySum/dailyVals.length).toLocaleString("hu")}</div></div>
-                <div><div style={{fontSize:10,color:"#3a4555"}}>Napi összeg</div><div style={{fontSize:18,fontWeight:800,color:ph.accent}}>{dailySum.toLocaleString("hu")}</div></div>
-                {todayVal!=null&&<div><div style={{fontSize:10,color:"#3a4555"}}>Ma</div><div style={{fontSize:18,fontWeight:800,color:"#fbbf24"}}>{todayVal.toLocaleString("hu")}</div></div>}
+                <div><div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>Napi trend ({dailyVals.length} nap)</div><Sparkline vals={dailyVals} color={ph.accent}/></div>
+                <div><div style={{fontSize:10,color:"#8899bb"}}>Napi átlag</div><div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{Math.round(dailySum/dailyVals.length).toLocaleString("hu")}</div></div>
+                <div><div style={{fontSize:10,color:"#8899bb"}}>Napi összeg</div><div style={{fontSize:18,fontWeight:800,color:ph.accent}}>{dailySum.toLocaleString("hu")}</div></div>
+                {todayVal!=null&&<div><div style={{fontSize:10,color:"#8899bb"}}>Ma</div><div style={{fontSize:18,fontWeight:800,color:"#fbbf24"}}>{todayVal.toLocaleString("hu")}</div></div>}
               </div>
             )}
           </div>
 
           {/* Quarter */}
-          <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:14,padding:"24px 26px"}}>
-            <div style={{fontSize:11,color:"#3a4555",fontWeight:600,marginBottom:6}}>Q{m.quarter} összesítés</div>
+          <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:14,padding:"24px 26px"}}>
+            <div style={{fontSize:11,color:"#8899bb",fontWeight:600,marginBottom:6}}>Q{m.quarter} összesítés</div>
             <div style={{fontSize:28,fontWeight:800,color:"#fff",letterSpacing:"-1px"}}>{qTgt.toLocaleString("hu")}</div>
-            <div style={{fontSize:11,color:"#3a4555",marginBottom:14}}>cél összesen</div>
-            {qAct>0&&<><div style={{fontSize:20,fontWeight:800,color:"#34d399"}}>{qAct.toLocaleString("hu")}</div><div style={{fontSize:11,color:"#3a4555",marginBottom:10}}>tény · {Math.round((qAct/qTgt)*100)}%</div></>}
-            <div style={{background:"#252b3b",borderRadius:3,height:5,overflow:"hidden",marginBottom:16}}><div style={{height:"100%",background:ph.accent,width:qAct&&qTgt?`${Math.min((qAct/qTgt)*100,100)}%`:"0%"}}/></div>
+            <div style={{fontSize:11,color:"#8899bb",marginBottom:14}}>cél összesen</div>
+            {qAct>0&&<><div style={{fontSize:20,fontWeight:800,color:"#34d399"}}>{qAct.toLocaleString("hu")}</div><div style={{fontSize:11,color:"#8899bb",marginBottom:10}}>tény · {Math.round((qAct/qTgt)*100)}%</div></>}
+            <div style={{background:"#2a3448",borderRadius:3,height:5,overflow:"hidden",marginBottom:16}}><div style={{height:"100%",background:ph.accent,width:qAct&&qTgt?`${Math.min((qAct/qTgt)*100,100)}%`:"0%"}}/></div>
             {qMs.map(k=>{
               const a=k.actual,pct2=a!=null?Math.round((a/k.target)*100):null;
               return(
@@ -623,44 +623,44 @@ export default function Dashboard() {
                     <span style={{color:k.month===selMonth?"#fff":"#4a5568",fontWeight:k.month===selMonth?700:400}}>{k.name}</span>
                     <div style={{textAlign:"right"}}>
                       {a!=null&&<span style={{fontSize:12,color:"#34d399",fontWeight:700}}>{a.toLocaleString("hu")} </span>}
-                      <span style={{fontSize:11,color:"#3a4555"}}>/ {k.target.toLocaleString("hu")}</span>
+                      <span style={{fontSize:11,color:"#8899bb"}}>/ {k.target.toLocaleString("hu")}</span>
                       {pct2!=null&&<span style={{fontSize:10,color:pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171",marginLeft:6,fontWeight:700}}>{pct2}%</span>}
                     </div>
                   </div>
-                  <div style={{background:"#252b3b",borderRadius:2,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2!=null?(pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171"):ph.accent+"33",width:a!=null?`${Math.min((a/k.target)*100,100)}%`:"0%"}}/></div>
+                  <div style={{background:"#2a3448",borderRadius:2,height:3,overflow:"hidden"}}><div style={{height:"100%",background:pct2!=null?(pct2>=100?"#34d399":pct2>=85?"#fbbf24":"#f87171"):ph.accent+"33",width:a!=null?`${Math.min((a/k.target)*100,100)}%`:"0%"}}/></div>
                 </div>
               );
             })}
           </div>
 
           {/* Éves */}
-          <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:14,padding:"20px 22px"}}>
-            <div style={{fontSize:11,color:"#3a4555",fontWeight:600,marginBottom:12}}>Éves összesítés</div>
+          <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:14,padding:"20px 22px"}}>
+            <div style={{fontSize:11,color:"#8899bb",fontWeight:600,marginBottom:12}}>Éves összesítés</div>
             {kpi.filter(k=>k.actual!=null).map(k=>{
               const ps=PHASE[k.phase]||PHASE["Építkezés"],p=Math.round((k.actual/k.target)*100);
               return(
                 <div key={k.month} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #1e2535"}}>
-                  <span style={{fontSize:11,color:"#4a5568"}}>{k.name}</span>
+                  <span style={{fontSize:11,color:"#99aacc"}}>{k.name}</span>
                   <div><span style={{fontSize:12,fontWeight:700,color:"#fff"}}>{k.actual.toLocaleString("hu")}</span><span style={{fontSize:10,color:p>=100?"#34d399":p>=85?"#fbbf24":"#f87171",marginLeft:6}}>{p}%</span></div>
                 </div>
               );
             })}
-            {kpi.filter(k=>k.actual!=null).length===0&&<div style={{fontSize:12,color:"#2a3347",textAlign:"center",paddingTop:20}}>Még nincs tény adat</div>}
+            {kpi.filter(k=>k.actual!=null).length===0&&<div style={{fontSize:12,color:"#3a5070",textAlign:"center",paddingTop:20}}>Még nincs tény adat</div>}
           </div>
         </div>
 
         {/* TÉMÁK */}
-        <div style={{background:"#161b27",border:"1px solid #08B7E444",borderRadius:14,padding:"16px 22px",marginBottom:16}}>
+        <div style={{background:"#1a2235",border:"1px solid #08B7E444",borderRadius:14,padding:"16px 22px",marginBottom:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#e0e6f0"}}>🎯 2026-os stratégiai témák</div>
+            <div style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>🎯 2026-os stratégiai témák</div>
             <button onClick={()=>saveThemes([...themes,"Új téma..."])} style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"4px 14px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új téma</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
             {themes.map((theme,i)=>(
-              <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"10px 12px"}}>
+              <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",background:"#0d1520",border:"1px solid #263045",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:"#08B7E4",flexShrink:0,marginTop:5}}/>
-                <div style={{flex:1}}><ETxt value={theme} onSave={val=>saveThemes(themes.map((th,idx)=>idx===i?val:th))} style={{fontSize:12.5,color:"#b0b8cc",lineHeight:1.5}}/></div>
-                <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
+                <div style={{flex:1}}><ETxt value={theme} onSave={val=>saveThemes(themes.map((th,idx)=>idx===i?val:th))} style={{fontSize:12.5,color:"#d0daf0",lineHeight:1.5}}/></div>
+                <button onClick={()=>saveThemes(themes.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
               </div>
             ))}
           </div>
@@ -696,7 +696,7 @@ export default function Dashboard() {
                         const n={...tasks};n[selMonth]={...n[selMonth]};
                         n[selMonth].extra=(n[selMonth].extra||[]).map((s,idx)=>idx===si?{...s,title:val}:s);
                         saveTasks(n);
-                      }} style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0"}}/>
+                      }} style={{fontSize:12.5,fontWeight:700,color:"#eef2fc"}}/>
                     }
                     items={sec.items||[]}
                     accent="#a78bfa"
@@ -749,9 +749,9 @@ export default function Dashboard() {
         {/* PERSONA */}
         {activeTab==="persona"&&(
           <div>
-            <div style={{background:"#161b27",border:"1px solid #a78bfa30",borderRadius:14,padding:24,marginBottom:14}}>
+            <div style={{background:"#1a2235",border:"1px solid #a78bfa30",borderRadius:14,padding:24,marginBottom:14}}>
               <div style={{fontSize:15,fontWeight:800,color:"#fff",marginBottom:6}}>🎯 Cél: 2 kidolgozott persona – Q2 végéig (2026. június 30.)</div>
-              <div style={{fontSize:12.5,color:"#4a5568",lineHeight:1.7,marginBottom:20}}>A pontosabb célzáshoz 2 vásárlói persona kerül kidolgozásra kérdőíves adatgyűjtés alapján.</div>
+              <div style={{fontSize:12.5,color:"#99aacc",lineHeight:1.7,marginBottom:20}}>A pontosabb célzáshoz 2 vásárlói persona kerül kidolgozásra kérdőíves adatgyűjtés alapján.</div>
               <div style={{position:"relative",paddingLeft:30}}>
                 <div style={{position:"absolute",left:8,top:10,bottom:10,width:2,background:"#1e2535"}}/>
                 {personaSteps.map((step,i)=>{
@@ -767,9 +767,9 @@ export default function Dashboard() {
                           </select>
                           <ETxt value={step.label} onSave={val=>editStep(i,"label",val)} style={{fontSize:13,fontWeight:700,color:active?"#fff":"#9aa3b5"}}/>
                           <input type="color" value={step.color} onChange={e=>editStep(i,"color",e.target.value)} style={{width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",padding:0,flexShrink:0}}/>
-                          <button onClick={()=>savePersona(personaSteps.filter((_,idx)=>idx!==i))} style={{marginLeft:"auto",background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+                          <button onClick={()=>savePersona(personaSteps.filter((_,idx)=>idx!==i))} style={{marginLeft:"auto",background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:15,padding:0}}>×</button>
                         </div>
-                        <ETxt value={step.detail} onSave={val=>editStep(i,"detail",val)} multiline={true} style={{fontSize:12,color:"#4a5568",display:"block",width:"100%"}}/>
+                        <ETxt value={step.detail} onSave={val=>editStep(i,"detail",val)} multiline={true} style={{fontSize:12,color:"#99aacc",display:"block",width:"100%"}}/>
                       </div>
                     </div>
                   );
@@ -778,17 +778,17 @@ export default function Dashboard() {
                   style={{background:"#a78bfa22",border:"1px dashed #a78bfa55",color:"#a78bfa",fontSize:12,padding:"8px 16px",borderRadius:8,cursor:"pointer",fontWeight:700}}>+ Új lépés</button>
               </div>
             </div>
-            <div style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:14,padding:24}}>
+            <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:14,padding:24}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
                 <div style={{fontSize:14,fontWeight:700,color:"#fff"}}>📝 Kérdőív tervezési sablon</div>
                 <button onClick={()=>saveQuest([...questionnaire,{label:"🔹 Új mező",val:"Tartalom..."}])} style={{background:"#a78bfa22",border:"1px dashed #a78bfa55",color:"#a78bfa",fontSize:11,padding:"5px 12px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Sor</button>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {questionnaire.map((q,i)=>(
-                  <div key={i} style={{background:"#0d1117",border:"1px solid #1e2535",borderRadius:8,padding:"11px 14px",position:"relative"}}>
-                    <button onClick={()=>saveQuest(questionnaire.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:13,padding:0}}>×</button>
+                  <div key={i} style={{background:"#0d1520",border:"1px solid #263045",borderRadius:8,padding:"11px 14px",position:"relative"}}>
+                    <button onClick={()=>saveQuest(questionnaire.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:6,right:8,background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:13,padding:0}}>×</button>
                     <div style={{marginBottom:4}}><ETxt value={q.label} onSave={val=>editQ(i,"label",val)} style={{fontSize:11,color:"#6b7280",fontWeight:600}}/></div>
-                    <ETxt value={q.val} onSave={val=>editQ(i,"val",val)} multiline={true} style={{fontSize:12,color:"#9aa3b5",display:"block",width:"100%"}}/>
+                    <ETxt value={q.val} onSave={val=>editQ(i,"val",val)} multiline={true} style={{fontSize:12,color:"#c0ccdd",display:"block",width:"100%"}}/>
                   </div>
                 ))}
               </div>
@@ -805,25 +805,25 @@ export default function Dashboard() {
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
               {trafficChannels.map((item,i)=>(
-                <div key={i} style={{background:"#161b27",border:"1px solid #252b3b",borderRadius:12,padding:"14px 16px",position:"relative"}}>
-                  <button onClick={()=>saveChannels(trafficChannels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#3a4555",cursor:"pointer",fontSize:15,padding:0}}>×</button>
+                <div key={i} style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"14px 16px",position:"relative"}}>
+                  <button onClick={()=>saveChannels(trafficChannels.filter((_,idx)=>idx!==i))} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:15,padding:0}}>×</button>
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
                     <input type="color" value={item.color} onChange={e=>editCh(i,"color",e.target.value)} style={{width:14,height:14,borderRadius:"50%",border:"none",cursor:"pointer",padding:0,flexShrink:0}}/>
-                    <ETxt value={item.ch} onSave={val=>editCh(i,"ch",val)} style={{fontSize:12.5,fontWeight:700,color:"#e0e6f0"}}/>
+                    <ETxt value={item.ch} onSave={val=>editCh(i,"ch",val)} style={{fontSize:12.5,fontWeight:700,color:"#eef2fc"}}/>
                   </div>
                   <div style={{marginBottom:6}}><ETxt value={item.mix} onSave={val=>editCh(i,"mix",val)} style={{fontSize:10,color:item.color,fontWeight:700}}/></div>
-                  <ETxt value={item.tip} onSave={val=>editCh(i,"tip",val)} multiline={true} style={{fontSize:11.5,color:"#4a5568",display:"block",width:"100%"}}/>
+                  <ETxt value={item.tip} onSave={val=>editCh(i,"tip",val)} multiline={true} style={{fontSize:11.5,color:"#99aacc",display:"block",width:"100%"}}/>
                 </div>
               ))}
             </div>
-            <div style={{background:"#161b27",border:`1px solid ${ph.accent}30`,borderRadius:14,padding:"18px 22px"}}>
+            <div style={{background:"#1a2235",border:`1px solid ${ph.accent}30`,borderRadius:14,padding:"18px 22px"}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:12}}>🎯 Kampánytervek</div>
               <TaskSection title="" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
             </div>
           </div>
         )}
 
-        <div style={{fontSize:10,color:"#1a3040",textAlign:"center",marginTop:20}}>
+        <div style={{fontSize:10,color:"#3a5070",textAlign:"center",marginTop:20}}>
           Furbify Marketing Dashboard 2026 · Firebase realtime sync · Minden változás azonnal mentődik
         </div>
       </div>
