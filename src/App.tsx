@@ -175,37 +175,29 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
   const statusObj = STATUSES.find(s=>s.id===task.status)||STATUSES[0];
 
   return (
-    <div style={{background:"#0d1520",border:"1px solid #263045",borderRadius:8,padding:"10px 12px",marginBottom:6,opacity:isDone?0.45:1}}>
-      {/* Top row: checkbox + label */}
-      <div style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6}}>
-        <div onClick={onToggle} style={{width:17,height:17,borderRadius:4,flexShrink:0,marginTop:2,border:`2px solid ${isDone?accent:"#3a3f50"}`,background:isDone?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s"}}>
-          {isDone&&<span style={{fontSize:10,color:"#000",fontWeight:800}}>✓</span>}
+    <div style={{background:"#0d1520",border:"1px solid #263045",borderRadius:10,padding:"12px 14px",marginBottom:8,opacity:isDone?0.45:1}}>
+      <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:8}}>
+        <div onClick={onToggle} style={{width:19,height:19,borderRadius:4,flexShrink:0,marginTop:2,border:`2px solid ${isDone?accent:"#4a5568"}`,background:isDone?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all 0.15s"}}>
+          {isDone&&<span style={{fontSize:11,color:"#000",fontWeight:800}}>✓</span>}
         </div>
-        <div style={{flex:1,textDecoration:isDone?"line-through":"none"}}>
-          <ETxt value={task.label} onSave={val=>onEdit("label",val)}/>
+        <div style={{flex:1,textDecoration:isDone?"line-through":"none",fontSize:13.5,color:"#d8e4f8",lineHeight:1.5}}>
+          <ETxt value={task.label} onSave={val=>onEdit("label",val)} style={{fontSize:13.5,color:"#d8e4f8"}}/>
           <DeadlineBadge deadline={task.deadline} status={task.status}/>
         </div>
-        <button onClick={onDelete} style={{background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:14,padding:0,flexShrink:0}}>×</button>
+        <button onClick={onDelete} style={{background:"none",border:"none",color:"#8899bb",cursor:"pointer",fontSize:16,padding:0,flexShrink:0}}>×</button>
       </div>
-
-      {/* Bottom row: assignee + status + deadline */}
       <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-        {/* Assignee */}
         <select value={task.assignee||""} onChange={e=>onEdit("assignee",e.target.value)}
-          style={{background:member?member.color+"22":"#161b27",border:`1px solid ${member?member.color+"55":"#252b3b"}`,color:member?member.color:"#99aacc",fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
+          style={{background:member?member.color+"22":"#1a2235",border:`1px solid ${member?member.color+"55":"#2e3a50"}`,color:member?member.color:"#8899bb",fontSize:11,padding:"3px 8px",borderRadius:6,cursor:"pointer",outline:"none"}}>
           <option value="">Felelős...</option>
           {team.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-
-        {/* Status */}
         <select value={task.status||"todo"} onChange={e=>onEdit("status",e.target.value)}
-          style={{background:statusObj.color+"22",border:`1px solid ${statusObj.color}55`,color:statusObj.color,fontSize:10,padding:"2px 6px",borderRadius:6,cursor:"pointer",outline:"none"}}>
+          style={{background:statusObj.color+"22",border:`1px solid ${statusObj.color}55`,color:statusObj.color,fontSize:11,padding:"3px 8px",borderRadius:6,cursor:"pointer",outline:"none"}}>
           {STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
-
-        {/* Deadline */}
         <input type="date" value={task.deadline||""} onChange={e=>onEdit("deadline",e.target.value)}
-          style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#99aacc",fontSize:10,padding:"2px 6px",borderRadius:6,outline:"none",cursor:"pointer"}}/>
+          style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#8899bb",fontSize:11,padding:"3px 8px",borderRadius:6,outline:"none",cursor:"pointer"}}/>
       </div>
     </div>
   );
@@ -215,8 +207,8 @@ function TaskItem({ task, onToggle, onEdit, onDelete, onUpdate, team, accent }) 
 function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDelete, onAdd, team }) {
   const [nw,setNw]=useState("");
   return (
-    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
-      {title&&<div style={{fontSize:12.5,fontWeight:700,color:"#eef2fc",marginBottom:12}}>{title}</div>}
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"18px 20px",marginBottom:12}}>
+      {title&&<div style={{fontSize:13.5,fontWeight:700,color:"#eef2fc",marginBottom:14}}>{title}</div>}
       {(items||[]).map((task,i)=>(
         <TaskItem key={task.id||i} task={task} team={team} accent={accent}
           onToggle={()=>onToggle(month,type,i)}
@@ -224,13 +216,13 @@ function TaskSection({ title, items, accent, month, type, onToggle, onEdit, onDe
           onDelete={()=>onDelete(month,type,i)}
           onUpdate={(field,val)=>onEdit(month,type,i,field,val)}/>
       ))}
-      <div style={{display:"flex",gap:6,marginTop:10}}>
+      <div style={{display:"flex",gap:6,marginTop:12}}>
         <input value={nw} onChange={e=>setNw(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter"&&nw.trim()){onAdd(month,type,nw.trim());setNw("");}}}
           placeholder="+ Új feladat..."
-          style={{flex:1,background:"#0d1520",border:"1px solid #263045",borderRadius:6,color:"#c0ccdd",fontSize:12,padding:"6px 10px",outline:"none"}}/>
+          style={{flex:1,background:"#0d1520",border:"1px solid #263045",borderRadius:6,color:"#c0ccdd",fontSize:13,padding:"8px 12px",outline:"none"}}/>
         <button onClick={()=>{if(nw.trim()){onAdd(month,type,nw.trim());setNw("");}}}
-          style={{background:accent+"22",border:`1px solid ${accent}44`,color:accent,fontSize:13,padding:"6px 14px",borderRadius:6,cursor:"pointer",fontWeight:800}}>+</button>
+          style={{background:accent+"22",border:`1px solid ${accent}44`,color:accent,fontSize:14,padding:"8px 16px",borderRadius:6,cursor:"pointer",fontWeight:800}}>+</button>
       </div>
     </div>
   );
@@ -289,41 +281,68 @@ function Sparkline({ vals, color, height=36 }) {
 
 // ─── TEAM OVERVIEW ─────────────────────────────────────────────
 function TeamOverview({ tasks, team, selMonth }) {
+  const [open, setOpen] = useState(false);
   const monthTasks = tasks[selMonth] || {};
-  const allTasks = Object.values(monthTasks).flat();
+  const allTasks = Object.values(monthTasks).flat().filter(t=>t&&typeof t==="object");
+  const totalOverdue = allTasks.filter(t=>t.deadline&&daysDiff(t.deadline)<0&&t.status!=="done").length;
+  const totalInprog  = allTasks.filter(t=>t.status==="inprogress").length;
+  const totalDone    = allTasks.filter(t=>t.status==="done").length;
 
   return (
-    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px",marginBottom:12}}>
-      <div style={{fontSize:12.5,fontWeight:700,color:"#eef2fc",marginBottom:12}}>👥 Csapat – havi áttekintő</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {team.map(member=>{
-          const myTasks = allTasks.filter(t=>t.assignee===member.id);
-          const done = myTasks.filter(t=>t.status==="done").length;
-          const overdue = myTasks.filter(t=>t.deadline&&daysDiff(t.deadline)<0&&t.status!=="done").length;
-          const inprog = myTasks.filter(t=>t.status==="inprogress").length;
-          const review = myTasks.filter(t=>t.status==="review").length;
-          return (
-            <div key={member.id} style={{background:"#0d1520",border:`1px solid ${member.color}33`,borderRadius:10,padding:"12px 14px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-                <div style={{width:32,height:32,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:member.color}}>
-                  {member.name[0]}
-                </div>
-                <div>
-                  <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>{member.name}</div>
-                  <div style={{fontSize:10,color:"#99aacc"}}>{myTasks.length} feladat</div>
-                </div>
-              </div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                {inprog>0&&<span style={{fontSize:10,background:"#08B7E422",color:"#08B7E4",padding:"2px 8px",borderRadius:10}}>🔵 {inprog} folyamatban</span>}
-                {review>0&&<span style={{fontSize:10,background:"#FA8C0522",color:"#FA8C05",padding:"2px 8px",borderRadius:10}}>🟡 {review} review</span>}
-                {done>0&&<span style={{fontSize:10,background:"#73AF1C22",color:"#73AF1C",padding:"2px 8px",borderRadius:10}}>✓ {done} kész</span>}
-                {overdue>0&&<span style={{fontSize:10,background:"#7f1d1d",color:"#f87171",padding:"2px 8px",borderRadius:10}}>⚠ {overdue} késik</span>}
-                {myTasks.length===0&&<span style={{fontSize:10,color:"#8899bb"}}>Nincs feladat</span>}
-              </div>
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,marginBottom:12,overflow:"hidden"}}>
+      {/* Header – mindig látható, kattintható */}
+      <div onClick={()=>setOpen(s=>!s)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",cursor:"pointer",userSelect:"none"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>👥 Csapat – havi áttekintő</span>
+          {/* Mini összesítő zárt állapotban */}
+          {!open&&(
+            <div style={{display:"flex",gap:6}}>
+              {totalInprog>0&&<span style={{fontSize:11,background:"#08B7E422",color:"#08B7E4",padding:"2px 10px",borderRadius:10}}>{totalInprog} folyamatban</span>}
+              {totalOverdue>0&&<span style={{fontSize:11,background:"#7f1d1d",color:"#f87171",padding:"2px 10px",borderRadius:10}}>⚠ {totalOverdue} késik</span>}
+              {totalDone>0&&<span style={{fontSize:11,background:"#73AF1C22",color:"#73AF1C",padding:"2px 10px",borderRadius:10}}>✓ {totalDone} kész</span>}
+              {allTasks.length===0&&<span style={{fontSize:11,color:"#8899bb"}}>Nincs feladat ebben a hónapban</span>}
             </div>
-          );
-        })}
+          )}
+        </div>
+        <span style={{fontSize:14,color:"#8899bb",transition:"transform 0.2s",display:"inline-block",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
       </div>
+
+      {/* Lenyíló tartalom */}
+      {open&&(
+        <div style={{padding:"0 18px 16px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+            {team.map(member=>{
+              const myTasks = allTasks.filter(t=>t.assignee===member.id);
+              const done    = myTasks.filter(t=>t.status==="done").length;
+              const overdue = myTasks.filter(t=>t.deadline&&daysDiff(t.deadline)<0&&t.status!=="done").length;
+              const inprog  = myTasks.filter(t=>t.status==="inprogress").length;
+              const review  = myTasks.filter(t=>t.status==="review").length;
+              const todo    = myTasks.filter(t=>t.status==="todo").length;
+              return (
+                <div key={member.id} style={{background:"#0d1520",border:`1px solid ${member.color}33`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                    <div style={{width:36,height:36,borderRadius:"50%",background:member.color+"33",border:`2px solid ${member.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:member.color}}>
+                      {member.name[0]}
+                    </div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:700,color:"#f0f4ff"}}>{member.name}</div>
+                      <div style={{fontSize:11,color:"#99aacc"}}>{myTasks.length} feladat összesen</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {todo>0   &&<span style={{fontSize:11,background:"#2a344822",color:"#8899bb",padding:"3px 10px",borderRadius:10,border:"1px solid #2e3a50"}}>📋 {todo} tervezés</span>}
+                    {inprog>0 &&<span style={{fontSize:11,background:"#08B7E422",color:"#08B7E4",padding:"3px 10px",borderRadius:10}}>🔵 {inprog} folyamatban</span>}
+                    {review>0 &&<span style={{fontSize:11,background:"#FA8C0522",color:"#FA8C05",padding:"3px 10px",borderRadius:10}}>🟡 {review} review</span>}
+                    {done>0   &&<span style={{fontSize:11,background:"#73AF1C22",color:"#73AF1C",padding:"3px 10px",borderRadius:10}}>✓ {done} kész</span>}
+                    {overdue>0&&<span style={{fontSize:11,background:"#7f1d1d",color:"#fca5a5",padding:"3px 10px",borderRadius:10,fontWeight:700}}>⚠ {overdue} késik</span>}
+                    {myTasks.length===0&&<span style={{fontSize:11,color:"#8899bb"}}>Nincs feladat</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
