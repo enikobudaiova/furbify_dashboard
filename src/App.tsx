@@ -52,7 +52,13 @@ const DEFAULT_TASKS = {
   12: { persona:[], campaigns:makeTasks(["Karácsonyi kampány – ajándék laptop","Év végi TOP 3 termék bemutató"]), other:makeTasks(["2026 éves kiértékelés","2027 stratégia tervezés"]), content:makeTasks(DEFAULT_CONTENT_ITEMS) },
 };
 
-const DEFAULT_THEMES = [
+const DEFAULT_CAL_CATEGORIES = ["Edukáció","Performance","Termék fókuszú","Szezonális","Egyéb"];
+
+const DEFAULT_CAL_CAMPAIGNS = [
+  { id:"c1", name:"Téli kiárusítás", category:"Performance", color:"#E45050", startMonth:1, startDay:1, endMonth:1, endDay:20 },
+  { id:"c2", name:"Valentine's Day", category:"Szezonális", color:"#f97316", startMonth:2, startDay:1, endMonth:2, endDay:14 },
+  { id:"c3", name:"Q1 performance kampány", category:"Performance", color:"#73AF1C", startMonth:1, startDay:15, endMonth:3, endDay:31 },
+];
   "Esztétikai útmutatók (laptop setupok, home office)",
   "Új vs Felújított vs Használt összehasonlítás",
   "Fenntarthatóság – CO2 megtakarítás",
@@ -120,6 +126,8 @@ const DOCS = {
   themes:          () => doc(db,"dashboard","themes"),
   trafficChannels: () => doc(db,"dashboard","channels"),
   team:            () => doc(db,"dashboard","team"),
+  calendar:        () => doc(db,"dashboard","calendar"),
+  calCategories:   () => doc(db,"dashboard","calCategories"),
 };
 async function fbSave(ref, data) {
   try { await setDoc(ref, { data: JSON.stringify(data) }); } catch(e) { console.error(e); }
@@ -268,6 +276,222 @@ function GrowthField({ prevYear, target, accent, onChangeTarget }) {
   );
 }
 
+// ─── CAMPAIGN CALENDAR ─────────────────────────────────────────
+const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
+const CAL_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b","#ec4899","#60a5fa"];
+
+function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCategories, today }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [expandedMonths, setExpandedMonths] = useState({1:true,2:true,3:true,4:true});
+  const [form, setForm] = useState({ name:"", category:"Performance", color:"#73AF1C", startMonth:1, startDay:1, endMonth:1, endDay:15 });
+
+  const openNew = () => {
+    setForm({ name:"", category:categories[0]||"Egyéb", color:"#73AF1C", startMonth:today.getMonth()+1, startDay:1, endMonth:today.getMonth()+1, endDay:15 });
+    setEditId(null); setShowForm(true);
+  };
+  const openEdit = (c) => {
+    setForm({...c}); setEditId(c.id); setShowForm(true);
+  };
+  const saveCampaign = () => {
+    if(!form.name.trim()) return;
+    if(editId) {
+      onSaveCampaigns(campaigns.map(c=>c.id===editId?{...form,id:editId}:c));
+    } else {
+      onSaveCampaigns([...campaigns,{...form,id:Date.now()+""}]);
+    }
+    setShowForm(false);
+  };
+
+  const toggleMonth = (mo) => setExpandedMonths(p=>({...p,[mo]:!p[mo]}));
+
+  return (
+    <div>
+      {/* Fejléc */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:700,color:"#eef2fc"}}>📅 Éves kampánynaptár – 2026</div>
+          <div style={{fontSize:11,color:"#8899bb",marginTop:2}}>Kattints egy kampányra a szerkesztéshez</div>
+        </div>
+        <button onClick={openNew} style={{background:"#73AF1C22",border:"1px dashed #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer",fontWeight:700}}>+ Új kampány</button>
+      </div>
+
+      {/* Kategóriák */}
+      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"14px 18px",marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc"}}>Kategóriák</div>
+          <button onClick={()=>onSaveCategories([...categories,"Új kategória"])} style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"3px 10px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új</button>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {categories.map((cat,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:4,background:"#0d1520",border:"1px solid #2e3a50",borderRadius:20,padding:"4px 12px"}}>
+              <ETxt value={cat} onSave={val=>onSaveCategories(categories.map((c,idx)=>idx===i?val:c))} style={{fontSize:12,color:"#d0daf0"}}/>
+              <button onClick={()=>onSaveCategories(categories.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#4a5568",cursor:"pointer",fontSize:12,padding:0,marginLeft:2}}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Jelmagyarázat */}
+      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+        {campaigns.map(c=>(
+          <div key={c.id} style={{display:"flex",alignItems:"center",gap:5,background:"#1a2235",border:"1px solid #2e3a50",borderRadius:20,padding:"3px 10px",cursor:"pointer"}} onClick={()=>openEdit(c)}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:c.color,flexShrink:0}}/>
+            <span style={{fontSize:11,color:"#d0daf0"}}>{c.name}</span>
+            <span style={{fontSize:10,color:"#4a5568"}}>· {c.category}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Gantt grid */}
+      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
+        {MONTH_NAMES.map((mName,mi)=>{
+          const mo = mi+1;
+          const days = MONTH_DAYS[mi];
+          const isExpanded = !!expandedMonths[mo];
+          const isCurrentMonth = mo === today.getMonth()+1;
+          const moCampaigns = campaigns.filter(c=>
+            (c.startMonth<=mo && c.endMonth>=mo)
+          );
+          const phase = mo<=6?"Építkezés":mo<=9?"Bemelegítés":"Performance";
+          const phaseColor = mo<=6?"#73AF1C":mo<=9?"#FA8C05":"#E45050";
+
+          return (
+            <div key={mo} style={{marginBottom:6}}>
+              {/* Hónap fejléc */}
+              <div onClick={()=>toggleMonth(mo)}
+                style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"6px 4px",borderRadius:6,userSelect:"none"}}>
+                <span style={{fontSize:11,fontWeight:700,color:isCurrentMonth?"#fbbf24":phaseColor,minWidth:32}}>{mName.slice(0,3)}</span>
+                <span style={{fontSize:9,color:phaseColor+"99",fontWeight:600,letterSpacing:1}}>{phase.toUpperCase()}</span>
+                {moCampaigns.length>0&&<span style={{fontSize:10,color:"#4a5568"}}>{moCampaigns.length} kampány</span>}
+                {isCurrentMonth&&<span style={{fontSize:9,background:"#fbbf2422",color:"#fbbf24",padding:"1px 6px",borderRadius:10}}>● Ma</span>}
+                <span style={{fontSize:11,color:"#4a5568",marginLeft:"auto",transition:"transform 0.2s",display:"inline-block",transform:isExpanded?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
+              </div>
+
+              {isExpanded&&(
+                <div style={{paddingLeft:4,paddingBottom:8}}>
+                  {/* Nap fejléc */}
+                  <div style={{display:"flex",marginBottom:3,paddingLeft:0}}>
+                    {Array.from({length:days},(_,d)=>(
+                      <div key={d} style={{flex:1,textAlign:"center",fontSize:8,color: isCurrentMonth&&d+1===today.getDate()?"#fbbf24":"#2e3a50",fontWeight:isCurrentMonth&&d+1===today.getDate()?800:400}}>
+                        {d+1===1||d+1===8||d+1===15||d+1===22||d+1===days?d+1:""}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Kampány sávok */}
+                  {moCampaigns.length===0?(
+                    <div style={{height:28,background:"#0d1520",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <span style={{fontSize:11,color:"#2e3a50"}}>Nincs kampány ebben a hónapban</span>
+                    </div>
+                  ):(
+                    moCampaigns.map(c=>{
+                      const startD = c.startMonth<mo ? 1 : c.startDay;
+                      const endD   = c.endMonth>mo  ? days : c.endDay;
+                      const leftPct  = ((startD-1)/days)*100;
+                      const widthPct = ((endD-startD+1)/days)*100;
+                      const isStart = c.startMonth===mo;
+                      const isEnd   = c.endMonth===mo;
+                      return (
+                        <div key={c.id} style={{position:"relative",height:28,marginBottom:3}}>
+                          {/* Háttér grid */}
+                          <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"#0d1520",borderRadius:6,overflow:"hidden"}}>
+                            {[7,14,21].map(d=>(
+                              <div key={d} style={{position:"absolute",top:0,bottom:0,left:`${(d/days)*100}%`,borderLeft:"1px solid #1a2538"}}/>
+                            ))}
+                            {/* Mai nap jelölő */}
+                            {isCurrentMonth&&<div style={{position:"absolute",top:0,bottom:0,left:`${((today.getDate()-1)/days)*100}%`,borderLeft:"2px solid #fbbf2466"}}/>}
+                          </div>
+                          {/* Kampány sáv */}
+                          <div onClick={()=>openEdit(c)}
+                            style={{position:"absolute",top:4,bottom:4,
+                              left:`${leftPct}%`,width:`${widthPct}%`,
+                              background:c.color,borderRadius:`${isStart?4:0}px ${isEnd?4:0}px ${isEnd?4:0}px ${isStart?4:0}px`,
+                              display:"flex",alignItems:"center",paddingLeft:6,cursor:"pointer",opacity:0.88,overflow:"hidden"}}>
+                            <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Szerkesztő form */}
+      {showForm&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.7)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowForm(false);}}>
+          <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:14,padding:24,width:420,maxWidth:"90vw"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#eef2fc",marginBottom:16}}>{editId?"Kampány szerkesztése":"Új kampány"}</div>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Kampány neve</div>
+              <input value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}
+                placeholder="pl. Black Friday kampány"
+                style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:13,padding:"8px 12px",outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Kategória</div>
+                <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}
+                  style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:13,padding:"8px 8px",outline:"none"}}>
+                  {categories.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Szín</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {CAL_COLORS.map(col=>(
+                    <div key={col} onClick={()=>setForm(p=>({...p,color:col}))}
+                      style={{width:24,height:24,borderRadius:"50%",background:col,cursor:"pointer",border:form.color===col?"3px solid #fff":"3px solid transparent"}}/>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:16}}>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Kezdő hó</div>
+                <select value={form.startMonth} onChange={e=>setForm(p=>({...p,startMonth:parseInt(e.target.value)}))}
+                  style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 4px",outline:"none"}}>
+                  {MONTH_NAMES.map((n,i)=><option key={i+1} value={i+1}>{n.slice(0,3)}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Kezdő nap</div>
+                <input type="number" min={1} max={31} value={form.startDay} onChange={e=>setForm(p=>({...p,startDay:parseInt(e.target.value)||1}))}
+                  style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 8px",outline:"none"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Záró hó</div>
+                <select value={form.endMonth} onChange={e=>setForm(p=>({...p,endMonth:parseInt(e.target.value)}))}
+                  style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 4px",outline:"none"}}>
+                  {MONTH_NAMES.map((n,i)=><option key={i+1} value={i+1}>{n.slice(0,3)}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Záró nap</div>
+                <input type="number" min={1} max={31} value={form.endDay} onChange={e=>setForm(p=>({...p,endDay:parseInt(e.target.value)||1}))}
+                  style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 8px",outline:"none"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              {editId&&<button onClick={()=>{onSaveCampaigns(campaigns.filter(c=>c.id!==editId));setShowForm(false);}}
+                style={{background:"#7f1d1d",border:"none",color:"#fca5a5",fontSize:12,padding:"8px 16px",borderRadius:8,cursor:"pointer",fontWeight:700}}>Törlés</button>}
+              <button onClick={()=>setShowForm(false)}
+                style={{background:"#0d1520",border:"1px solid #2e3a50",color:"#8899bb",fontSize:12,padding:"8px 16px",borderRadius:8,cursor:"pointer"}}>Mégse</button>
+              <button onClick={saveCampaign}
+                style={{background:"#73AF1C",border:"none",color:"#000",fontSize:12,padding:"8px 20px",borderRadius:8,cursor:"pointer",fontWeight:700}}>Mentés</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SPARKLINE ─────────────────────────────────────────────────
 function Sparkline({ vals, color, height=36 }) {
   if(!vals||vals.length<2) return null;
@@ -358,6 +582,8 @@ export default function Dashboard() {
   const [trafficChannels,setTrafficChannels] = useState(DEFAULT_TRAFFIC_CHANNELS);
   const [themes,setThemes]              = useState(DEFAULT_THEMES);
   const [team,setTeam]                  = useState(DEFAULT_TEAM);
+  const [calCampaigns,setCalCampaigns]  = useState(DEFAULT_CAL_CAMPAIGNS);
+  const [calCategories,setCalCategories]= useState(DEFAULT_CAL_CATEGORIES);
   const [selMonth,setSelMonth]          = useState(today.getMonth()+1);
   const [activeTab,setActiveTab]        = useState("tasks");
   const [showDataPanel,setShowDataPanel]= useState(false);
@@ -376,6 +602,8 @@ export default function Dashboard() {
       onSnapshot(DOCS.trafficChannels(),s=>{ if(s.exists()) setTrafficChannels(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.themes(), s=>{ if(s.exists()) setThemes(JSON.parse(s.data().data)); }),
       onSnapshot(DOCS.team(),   s=>{ if(s.exists()) setTeam(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.calendar(),s=>{ if(s.exists()) setCalCampaigns(JSON.parse(s.data().data)); }),
+      onSnapshot(DOCS.calCategories(),s=>{ if(s.exists()) setCalCategories(JSON.parse(s.data().data)); }),
     ];
     setSynced(true); setSyncStatus("✓ Szinkronizálva");
     return ()=>unsubs.forEach(u=>u());
@@ -389,6 +617,8 @@ export default function Dashboard() {
   const saveChannels = v => { setTrafficChannels(v); fbSave(DOCS.trafficChannels(), v); };
   const saveThemes   = v => { setThemes(v);          fbSave(DOCS.themes(), v); };
   const saveTeam     = v => { setTeam(v);            fbSave(DOCS.team(), v); };
+  const saveCalCampaigns   = v => { setCalCampaigns(v);   fbSave(DOCS.calendar(), v); };
+  const saveCalCategories  = v => { setCalCategories(v);  fbSave(DOCS.calCategories(), v); };
 
   // KPI derived
   const m    = kpi.find(k=>k.month===selMonth)||kpi[3];
@@ -687,7 +917,7 @@ export default function Dashboard() {
 
         {/* TABS */}
         <div style={{display:"flex",gap:2,borderBottom:"1px solid #1a3040",marginBottom:16}}>
-          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"traffic",label:"🚀 Forgalomterelés"}].map(tab=>(
+          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"traffic",label:"🚀 Forgalomterelés"},{id:"calendar",label:"📅 Kampánynaptár"}].map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"transparent",border:"none",borderBottom:activeTab===tab.id?"2px solid #73AF1C":"2px solid transparent",color:activeTab===tab.id?"#fff":"#3a5a6e",fontSize:12.5,fontWeight:activeTab===tab.id?700:400,padding:"8px 18px",cursor:"pointer",marginBottom:-1,transition:"all 0.15s"}}>{tab.label}</button>
           ))}
         </div>
@@ -842,7 +1072,16 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div style={{fontSize:10,color:"#3a5070",textAlign:"center",marginTop:20}}>
+        {/* KAMPÁNYNAPTÁR */}
+        {activeTab==="calendar"&&(
+          <CampaignCalendar
+            campaigns={calCampaigns}
+            categories={calCategories}
+            onSaveCampaigns={saveCalCampaigns}
+            onSaveCategories={saveCalCategories}
+            today={today}
+          />
+        )}
           Furbify Marketing Dashboard 2026 · Firebase realtime sync · Minden változás azonnal mentődik
         </div>
       </div>
