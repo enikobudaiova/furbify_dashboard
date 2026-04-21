@@ -285,8 +285,9 @@ const CAL_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316",
 function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCategories, today }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [expandedMonths, setExpandedMonths] = useState({1:true,2:true,3:true,4:true});
   const [form, setForm] = useState({ name:"", category:"Performance", color:"#73AF1C", startMonth:1, startDay:1, endMonth:1, endDay:15 });
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
 
   const openNew = () => {
     setForm({ name:"", category:categories[0]||"Egyéb", color:"#73AF1C", startMonth:today.getMonth()+1, startDay:1, endMonth:today.getMonth()+1, endDay:15 });
@@ -305,7 +306,17 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
     setShowForm(false);
   };
 
-  const toggleMonth = (mo) => setExpandedMonths(p=>({...p,[mo]:!p[mo]}));
+  const handleDragStart = (i) => setDragIdx(i);
+  const handleDragOver = (e, i) => { e.preventDefault(); setDragOverIdx(i); };
+  const handleDrop = (i) => {
+    if(dragIdx===null||dragIdx===i) { setDragIdx(null); setDragOverIdx(null); return; }
+    const arr = [...campaigns];
+    const [moved] = arr.splice(dragIdx, 1);
+    arr.splice(i, 0, moved);
+    onSaveCampaigns(arr);
+    setDragIdx(null); setDragOverIdx(null);
+  };
+  const handleDragEnd = () => { setDragIdx(null); setDragOverIdx(null); };
 
   const MO_NAMES_SHORT = ["Jan","Feb","Már","Ápr","Máj","Jún","Júl","Aug","Sze","Okt","Nov","Dec"];
   const MO_COLORS = ["#73AF1C","#73AF1C","#73AF1C","#73AF1C","#73AF1C","#73AF1C","#FA8C05","#FA8C05","#FA8C05","#E45050","#E45050","#E45050"];
@@ -372,14 +383,25 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
           const todayPct = toX(today.getMonth()+1, today.getDate());
           const startLabel = `${MONTH_NAMES[c.startMonth-1].slice(0,3)}. ${c.startDay}.`;
           const endLabel   = `${MONTH_NAMES[c.endMonth-1].slice(0,3)}. ${c.endDay}.`;
+          const isDragging = dragIdx===ci;
+          const isDragOver = dragOverIdx===ci;
           return (
-            <div key={c.id} style={{display:"flex",alignItems:"center",borderBottom:ci<campaigns.length-1?"1px solid #1a2538":"none"}}>
-              {/* Bal oszlop: név + kategória */}
-              <div style={{width:170,flexShrink:0,padding:"10px 14px",borderRight:"1px solid #2e3a50"}}>
-                <div style={{fontSize:12,fontWeight:600,color:"#d8e4f8",marginBottom:2,cursor:"pointer"}} onClick={()=>openEdit(c)}>{c.name}</div>
-                <div style={{display:"flex",alignItems:"center",gap:5}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",background:c.color,flexShrink:0}}/>
-                  <span style={{fontSize:10,color:"#4a5568"}}>{c.category}</span>
+            <div key={c.id}
+              draggable
+              onDragStart={()=>handleDragStart(ci)}
+              onDragOver={e=>handleDragOver(e,ci)}
+              onDrop={()=>handleDrop(ci)}
+              onDragEnd={handleDragEnd}
+              style={{display:"flex",alignItems:"center",borderBottom:ci<campaigns.length-1?"1px solid #1a2538":"none",opacity:isDragging?0.4:1,background:isDragOver?"#263045":"transparent",transition:"background 0.1s"}}>
+              {/* Bal oszlop: drag handle + név + kategória */}
+              <div style={{width:170,flexShrink:0,padding:"10px 14px",borderRight:"1px solid #2e3a50",display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:14,color:"#2e3a50",cursor:"grab",flexShrink:0}} title="Húzd a rendezéshez">⠿</span>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:"#d8e4f8",marginBottom:2,cursor:"pointer"}} onClick={()=>openEdit(c)}>{c.name}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:c.color,flexShrink:0}}/>
+                    <span style={{fontSize:10,color:"#4a5568"}}>{c.category}</span>
+                  </div>
                 </div>
               </div>
               {/* Gantt sáv */}
@@ -395,14 +417,10 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
                   title={`${startLabel} – ${endLabel}`}
                   style={{position:"absolute",top:8,bottom:8,left:`${leftPct}%`,width:`${widthPct}%`,
                     background:c.color,borderRadius:5,cursor:"pointer",opacity:0.9,
-                    display:"flex",alignItems:"center",paddingLeft:6,overflow:"visible",zIndex:3}}>
-                  <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"visible",
-                    position:"absolute",left:widthPct>10?6:"calc(100% + 4px)",top:"50%",transform:"translateY(-50%)",
-                    background:widthPct>10?"transparent":c.color+"ee",
-                    padding:widthPct>10?"0":"1px 5px",borderRadius:3,
-                    color:widthPct>10?"#000":"#000"}}>
+                    display:"flex",alignItems:"center",paddingLeft:6,overflow:"hidden",zIndex:3}}>
+                  {widthPct>12&&<span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                     {`${startLabel} – ${endLabel}`}
-                  </span>
+                  </span>}
                 </div>
               </div>
             </div>
