@@ -392,11 +392,16 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
                 <div style={{position:"absolute",top:0,bottom:0,left:`${todayPct}%`,borderLeft:"2px solid #fbbf2466",zIndex:2}}/>
                 {/* Kampány sáv */}
                 <div onClick={()=>openEdit(c)}
+                  title={`${startLabel} – ${endLabel}`}
                   style={{position:"absolute",top:8,bottom:8,left:`${leftPct}%`,width:`${widthPct}%`,
                     background:c.color,borderRadius:5,cursor:"pointer",opacity:0.9,
-                    display:"flex",alignItems:"center",paddingLeft:8,overflow:"hidden",zIndex:3}}>
-                  <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                    {widthPct>8?`${startLabel} – ${endLabel}`:""}
+                    display:"flex",alignItems:"center",paddingLeft:6,overflow:"visible",zIndex:3}}>
+                  <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"visible",
+                    position:"absolute",left:widthPct>10?6:"calc(100% + 4px)",top:"50%",transform:"translateY(-50%)",
+                    background:widthPct>10?"transparent":c.color+"ee",
+                    padding:widthPct>10?"0":"1px 5px",borderRadius:3,
+                    color:widthPct>10?"#000":"#000"}}>
+                    {`${startLabel} – ${endLabel}`}
                   </span>
                 </div>
               </div>
