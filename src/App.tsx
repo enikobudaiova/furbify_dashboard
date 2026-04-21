@@ -307,20 +307,30 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
 
   const toggleMonth = (mo) => setExpandedMonths(p=>({...p,[mo]:!p[mo]}));
 
+  const MO_NAMES_SHORT = ["Jan","Feb","Már","Ápr","Máj","Jún","Júl","Aug","Sze","Okt","Nov","Dec"];
+  const MO_COLORS = ["#73AF1C","#73AF1C","#73AF1C","#73AF1C","#73AF1C","#73AF1C","#FA8C05","#FA8C05","#FA8C05","#E45050","#E45050","#E45050"];
+  const currentMo = today.getMonth(); // 0-indexed
+
+  // Convert campaign to % position across 12 months
+  const toX = (month, day) => {
+    const daysInMonth = MONTH_DAYS[month-1];
+    return ((month-1) + (day-1)/daysInMonth) / 12 * 100;
+  };
+
   return (
     <div>
       {/* Fejléc */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div>
           <div style={{fontSize:15,fontWeight:700,color:"#eef2fc"}}>📅 Éves kampánynaptár – 2026</div>
-          <div style={{fontSize:11,color:"#8899bb",marginTop:2}}>Kattints egy kampányra a szerkesztéshez</div>
+          <div style={{fontSize:11,color:"#8899bb",marginTop:2}}>Kattints egy kampányra a szerkesztéshez · sárga vonal = ma</div>
         </div>
         <button onClick={openNew} style={{background:"#73AF1C22",border:"1px dashed #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer",fontWeight:700}}>+ Új kampány</button>
       </div>
 
       {/* Kategóriák */}
-      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"14px 18px",marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"12px 18px",marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{fontSize:12,fontWeight:700,color:"#eef2fc"}}>Kategóriák</div>
           <button onClick={()=>onSaveCategories([...categories,"Új kategória"])} style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"3px 10px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új</button>
         </div>
@@ -334,90 +344,62 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
         </div>
       </div>
 
-      {/* Jelmagyarázat */}
-      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-        {campaigns.map(c=>(
-          <div key={c.id} style={{display:"flex",alignItems:"center",gap:5,background:"#1a2235",border:"1px solid #2e3a50",borderRadius:20,padding:"3px 10px",cursor:"pointer"}} onClick={()=>openEdit(c)}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:c.color,flexShrink:0}}/>
-            <span style={{fontSize:11,color:"#d0daf0"}}>{c.name}</span>
-            <span style={{fontSize:10,color:"#4a5568"}}>· {c.category}</span>
-          </div>
-        ))}
-      </div>
+      {/* Gantt – horizontális nézet */}
+      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,overflow:"hidden"}}>
 
-      {/* Gantt grid */}
-      <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
-        {MONTH_NAMES.map((mName,mi)=>{
-          const mo = mi+1;
-          const days = MONTH_DAYS[mi];
-          const isExpanded = !!expandedMonths[mo];
-          const isCurrentMonth = mo === today.getMonth()+1;
-          const moCampaigns = campaigns.filter(c=>
-            (c.startMonth<=mo && c.endMonth>=mo)
-          );
-          const phase = mo<=6?"Építkezés":mo<=9?"Bemelegítés":"Performance";
-          const phaseColor = mo<=6?"#73AF1C":mo<=9?"#FA8C05":"#E45050";
-
-          return (
-            <div key={mo} style={{marginBottom:6}}>
-              {/* Hónap fejléc */}
-              <div onClick={()=>toggleMonth(mo)}
-                style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"6px 4px",borderRadius:6,userSelect:"none"}}>
-                <span style={{fontSize:11,fontWeight:700,color:isCurrentMonth?"#fbbf24":phaseColor,minWidth:32}}>{mName.slice(0,3)}</span>
-                <span style={{fontSize:9,color:phaseColor+"99",fontWeight:600,letterSpacing:1}}>{phase.toUpperCase()}</span>
-                {moCampaigns.length>0&&<span style={{fontSize:10,color:"#4a5568"}}>{moCampaigns.length} kampány</span>}
-                {isCurrentMonth&&<span style={{fontSize:9,background:"#fbbf2422",color:"#fbbf24",padding:"1px 6px",borderRadius:10}}>● Ma</span>}
-                <span style={{fontSize:11,color:"#4a5568",marginLeft:"auto",transition:"transform 0.2s",display:"inline-block",transform:isExpanded?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
+        {/* Hónap fejléc */}
+        <div style={{display:"flex",borderBottom:"1px solid #2e3a50"}}>
+          <div style={{width:170,flexShrink:0,padding:"10px 14px",fontSize:11,fontWeight:700,color:"#8899bb",borderRight:"1px solid #2e3a50"}}>Kampány</div>
+          <div style={{flex:1,display:"grid",gridTemplateColumns:"repeat(12,1fr)"}}>
+            {MO_NAMES_SHORT.map((mn,i)=>(
+              <div key={i} style={{padding:"10px 4px",fontSize:10,color:i===currentMo?"#fbbf24":MO_COLORS[i],fontWeight:700,textAlign:"center",borderRight:i<11?"1px solid #1a2538":"none",background:i===currentMo?"#fbbf2408":"transparent"}}>
+                {mn}
               </div>
+            ))}
+          </div>
+        </div>
 
-              {isExpanded&&(
-                <div style={{paddingLeft:4,paddingBottom:8}}>
-                  {/* Nap fejléc */}
-                  <div style={{display:"flex",marginBottom:3,paddingLeft:0}}>
-                    {Array.from({length:days},(_,d)=>(
-                      <div key={d} style={{flex:1,textAlign:"center",fontSize:8,color: isCurrentMonth&&d+1===today.getDate()?"#fbbf24":"#2e3a50",fontWeight:isCurrentMonth&&d+1===today.getDate()?800:400}}>
-                        {d+1===1||d+1===8||d+1===15||d+1===22||d+1===days?d+1:""}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Kampány sávok */}
-                  {moCampaigns.length===0?(
-                    <div style={{height:28,background:"#0d1520",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <span style={{fontSize:11,color:"#2e3a50"}}>Nincs kampány ebben a hónapban</span>
-                    </div>
-                  ):(
-                    moCampaigns.map(c=>{
-                      const startD = c.startMonth<mo ? 1 : c.startDay;
-                      const endD   = c.endMonth>mo  ? days : c.endDay;
-                      const leftPct  = ((startD-1)/days)*100;
-                      const widthPct = ((endD-startD+1)/days)*100;
-                      const isStart = c.startMonth===mo;
-                      const isEnd   = c.endMonth===mo;
-                      return (
-                        <div key={c.id} style={{position:"relative",height:28,marginBottom:3}}>
-                          {/* Háttér grid */}
-                          <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"#0d1520",borderRadius:6,overflow:"hidden"}}>
-                            {[7,14,21].map(d=>(
-                              <div key={d} style={{position:"absolute",top:0,bottom:0,left:`${(d/days)*100}%`,borderLeft:"1px solid #1a2538"}}/>
-                            ))}
-                            {/* Mai nap jelölő */}
-                            {isCurrentMonth&&<div style={{position:"absolute",top:0,bottom:0,left:`${((today.getDate()-1)/days)*100}%`,borderLeft:"2px solid #fbbf2466"}}/>}
-                          </div>
-                          {/* Kampány sáv */}
-                          <div onClick={()=>openEdit(c)}
-                            style={{position:"absolute",top:4,bottom:4,
-                              left:`${leftPct}%`,width:`${widthPct}%`,
-                              background:c.color,borderRadius:`${isStart?4:0}px ${isEnd?4:0}px ${isEnd?4:0}px ${isStart?4:0}px`,
-                              display:"flex",alignItems:"center",paddingLeft:6,cursor:"pointer",opacity:0.88,overflow:"hidden"}}>
-                            <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.name}</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+        {/* Kampány sorok */}
+        {campaigns.length===0&&(
+          <div style={{padding:"24px",textAlign:"center",fontSize:12,color:"#4a5568"}}>
+            Még nincs kampány. Kattints a "+ Új kampány" gombra!
+          </div>
+        )}
+        {campaigns.map((c,ci)=>{
+          const leftPct = toX(c.startMonth, c.startDay);
+          const rightPct = toX(c.endMonth, c.endDay);
+          const widthPct = Math.max(rightPct - leftPct, 0.5);
+          const todayPct = toX(today.getMonth()+1, today.getDate());
+          const startLabel = `${MONTH_NAMES[c.startMonth-1].slice(0,3)}. ${c.startDay}.`;
+          const endLabel   = `${MONTH_NAMES[c.endMonth-1].slice(0,3)}. ${c.endDay}.`;
+          return (
+            <div key={c.id} style={{display:"flex",alignItems:"center",borderBottom:ci<campaigns.length-1?"1px solid #1a2538":"none"}}>
+              {/* Bal oszlop: név + kategória */}
+              <div style={{width:170,flexShrink:0,padding:"10px 14px",borderRight:"1px solid #2e3a50"}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#d8e4f8",marginBottom:2,cursor:"pointer"}} onClick={()=>openEdit(c)}>{c.name}</div>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <div style={{width:7,height:7,borderRadius:"50%",background:c.color,flexShrink:0}}/>
+                  <span style={{fontSize:10,color:"#4a5568"}}>{c.category}</span>
                 </div>
-              )}
+              </div>
+              {/* Gantt sáv */}
+              <div style={{flex:1,position:"relative",height:44}}>
+                {/* Hónap grid vonalak */}
+                {Array.from({length:11},(_,i)=>(
+                  <div key={i} style={{position:"absolute",top:0,bottom:0,left:`${(i+1)/12*100}%`,borderLeft:"1px solid #1a2538"}}/>
+                ))}
+                {/* Mai nap vonal */}
+                <div style={{position:"absolute",top:0,bottom:0,left:`${todayPct}%`,borderLeft:"2px solid #fbbf2466",zIndex:2}}/>
+                {/* Kampány sáv */}
+                <div onClick={()=>openEdit(c)}
+                  style={{position:"absolute",top:8,bottom:8,left:`${leftPct}%`,width:`${widthPct}%`,
+                    background:c.color,borderRadius:5,cursor:"pointer",opacity:0.9,
+                    display:"flex",alignItems:"center",paddingLeft:8,overflow:"hidden",zIndex:3}}>
+                  <span style={{fontSize:10,fontWeight:700,color:"#000",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    {widthPct>8?`${startLabel} – ${endLabel}`:""}
+                  </span>
+                </div>
+              </div>
             </div>
           );
         })}
