@@ -59,6 +59,8 @@ const DEFAULT_CAL_CAMPAIGNS = [
   { id:"c2", name:"Valentine's Day", category:"Szezonális", color:"#f97316", startMonth:2, startDay:1, endMonth:2, endDay:14 },
   { id:"c3", name:"Q1 performance kampány", category:"Performance", color:"#73AF1C", startMonth:1, startDay:15, endMonth:3, endDay:31 },
 ];
+
+const DEFAULT_THEMES = [
   "Esztétikai útmutatók (laptop setupok, home office)",
   "Új vs Felújított vs Használt összehasonlítás",
   "Fenntarthatóság – CO2 megtakarítás",
