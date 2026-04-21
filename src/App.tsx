@@ -1084,9 +1084,9 @@ export default function Dashboard() {
             today={today}
           />
         )}
+
         <div style={{fontSize:10,color:"#3a5070",textAlign:"center",marginTop:20}}>
-  Furbify Marketing Dashboard 2026 · Firebase realtime sync · Minden változás azonnal mentődik
-         </div>
+          Furbify Marketing Dashboard 2026 · Firebase realtime sync · Minden változás azonnal mentődik
         </div>
       </div>
     </div>
