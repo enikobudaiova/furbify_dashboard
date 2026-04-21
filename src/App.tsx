@@ -282,15 +282,28 @@ function GrowthField({ prevYear, target, accent, onChangeTarget }) {
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
 const CAL_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b","#ec4899","#60a5fa"];
 
+const CAT_COLORS = {
+  "Edukáció":       "#73AF1C",
+  "Performance":    "#E45050",
+  "Termék fókuszú": "#FA8C05",
+  "Szezonális":     "#08B7E4",
+  "Egyéb":          "#a78bfa",
+};
+
+function getCatColor(cat) {
+  return CAT_COLORS[cat] || "#8899bb";
+}
+
 function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCategories, today }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name:"", category:"Performance", color:"#73AF1C", startMonth:1, startDay:1, endMonth:1, endDay:15 });
+  const [form, setForm] = useState({ name:"", category:"Performance", color:CAT_COLORS["Performance"], startMonth:1, startDay:1, endMonth:1, endDay:15 });
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
   const openNew = () => {
-    setForm({ name:"", category:categories[0]||"Egyéb", color:"#73AF1C", startMonth:today.getMonth()+1, startDay:1, endMonth:today.getMonth()+1, endDay:15 });
+    const defCat = categories[0]||"Egyéb";
+    setForm({ name:"", category:defCat, color:getCatColor(defCat), startMonth:today.getMonth()+1, startDay:1, endMonth:today.getMonth()+1, endDay:15 });
     setEditId(null); setShowForm(true);
   };
   const openEdit = (c) => {
@@ -339,19 +352,23 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
         <button onClick={openNew} style={{background:"#73AF1C22",border:"1px dashed #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer",fontWeight:700}}>+ Új kampány</button>
       </div>
 
-      {/* Kategóriák */}
+      {/* Kategóriák – színes badge-ekkel */}
       <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"12px 18px",marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{fontSize:12,fontWeight:700,color:"#eef2fc"}}>Kategóriák</div>
           <button onClick={()=>onSaveCategories([...categories,"Új kategória"])} style={{background:"#08B7E422",border:"1px dashed #08B7E455",color:"#08B7E4",fontSize:11,padding:"3px 10px",borderRadius:6,cursor:"pointer",fontWeight:700}}>+ Új</button>
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {categories.map((cat,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:4,background:"#0d1520",border:"1px solid #2e3a50",borderRadius:20,padding:"4px 12px"}}>
-              <ETxt value={cat} onSave={val=>onSaveCategories(categories.map((c,idx)=>idx===i?val:c))} style={{fontSize:12,color:"#d0daf0"}}/>
-              <button onClick={()=>onSaveCategories(categories.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:"#4a5568",cursor:"pointer",fontSize:12,padding:0,marginLeft:2}}>×</button>
-            </div>
-          ))}
+          {categories.map((cat,i)=>{
+            const col = getCatColor(cat);
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:col+"22",border:`1px solid ${col}55`,borderRadius:20,padding:"5px 14px"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:col,flexShrink:0}}/>
+                <ETxt value={cat} onSave={val=>onSaveCategories(categories.map((c,idx)=>idx===i?val:c))} style={{fontSize:12,color:col,fontWeight:600}}/>
+                <button onClick={()=>onSaveCategories(categories.filter((_,idx)=>idx!==i))} style={{background:"none",border:"none",color:col+"99",cursor:"pointer",fontSize:12,padding:0,marginLeft:2}}>×</button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -399,8 +416,8 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:"#d8e4f8",marginBottom:2,cursor:"pointer"}} onClick={()=>openEdit(c)}>{c.name}</div>
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:c.color,flexShrink:0}}/>
-                    <span style={{fontSize:10,color:"#4a5568"}}>{c.category}</span>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:getCatColor(c.category),flexShrink:0}}/>
+                    <span style={{fontSize:10,color:getCatColor(c.category),fontWeight:600}}>{c.category}</span>
                   </div>
                 </div>
               </div>
@@ -443,7 +460,7 @@ function CampaignCalendar({ campaigns, categories, onSaveCampaigns, onSaveCatego
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <div>
                 <div style={{fontSize:11,color:"#8899bb",marginBottom:4}}>Kategória</div>
-                <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))}
+                <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value,color:getCatColor(e.target.value)}))}
                   style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:13,padding:"8px 8px",outline:"none"}}>
                   {categories.map(c=><option key={c} value={c}>{c}</option>)}
                 </select>
