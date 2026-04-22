@@ -447,29 +447,45 @@ async function fetchSheet2(sheetName){
 function buildCampaigns(adsData, platform, market, eurHuf) {
   const toEur=(val,isHuf)=>isHuf?val/eurHuf:val;
   const filtered = adsData.filter(r=>{
-    const acc=r["Account: Account name"]||"";
-    const isHu=acc==="furbify.hu"; const isSk=acc==="furbify.sk";
-    if(market==="hu"&&!isHu) return false;
-    if(market==="sk"&&!isSk) return false;
-    if(market==="all"&&!isHu&&!isSk) return false;
-    return true;
+    // Handle both Google Ads and Meta Ads account name columns
+    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || "";
+    // For Meta, try to detect HU/SK from account name or ad account name
+    const isHu = acc==="furbify.hu" || acc?.toLowerCase().includes("hu") || acc?.toLowerCase().includes("hungary");
+    const isSk = acc==="furbify.sk" || acc?.toLowerCase().includes("sk") || acc?.toLowerCase().includes("slovak");
+    // If no account info at all, include everything
+    const hasAccInfo = acc.length > 0;
+    if(!hasAccInfo) return true;
+    if(market==="hu") return isHu;
+    if(market==="sk") return isSk;
+    return true; // "all"
   });
 
-  // Group by date+campaign
+  // Group by date+campaign – handles both Google Ads and Meta Ads column formats
   const campDayMap={};
   filtered.forEach(r=>{
-    const name=r["Campaign: Campaign name"]; if(!name) return;
-    const acc=r["Account: Account name"];
-    const isHuf=acc==="furbify.hu";
-    const date=r["Report: Date"]||"";
+    // Campaign name – Google Ads or Meta Ads format
+    const name = r["Campaign: Campaign name"] || r["Campaign name"] || r["campaign_name"] || r["Ad Set Name"] || "";
+    if(!name) return;
+    // Account name
+    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || (platform==="meta"?`furbify.${market}`:"");
+    const isHuf = acc==="furbify.hu" || acc?.includes(".hu");
+    const date = r["Report: Date"] || r["Date"] || r["date"] || r["Day"] || "";
     const key=`${acc}::${name}`;
-    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key};
+    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
     const d=date;
     if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,conversions:0};
-    campDayMap[key].days[d].spendEur    +=toEur(parseNum2(r["Cost: Amount spend"]),isHuf);
-    campDayMap[key].days[d].clicks      +=parseInt(r["Performance: Clicks"]||0);
-    campDayMap[key].days[d].impressions +=parseInt(r["Performance: Impressions"]||0);
-    campDayMap[key].days[d].conversions +=parseNum2(r["Conversions: Conversions"]);
+    // Spend – Google Ads or Meta Ads
+    const spend = parseNum2(r["Cost: Amount spend"] || r["Amount spent"] || r["spend"] || r["Spend"] || "0");
+    // Clicks
+    const clicks = parseInt(r["Performance: Clicks"] || r["Link clicks"] || r["clicks"] || r["Clicks"] || "0");
+    // Impressions
+    const impr = parseInt(r["Performance: Impressions"] || r["Impressions"] || r["impressions"] || "0");
+    // Conversions
+    const conv = parseNum2(r["Conversions: Conversions"] || r["Purchases"] || r["conversions"] || r["Results"] || r["Leads"] || "0");
+    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);
+    campDayMap[key].days[d].clicks      += clicks;
+    campDayMap[key].days[d].impressions += impr;
+    campDayMap[key].days[d].conversions += conv;
   });
 
   return Object.values(campDayMap).map(c=>{
@@ -521,6 +537,7 @@ function buildChartData2(camps, days) {
 
 function PerformanceDashboard() {
   const [adsData,setAdsData]   = useState([]);
+  const [metaData,setMetaData] = useState([]);
   const [loading,setLoading]   = useState(true);
   const [error,setError]       = useState(null);
   const [platform,setPlatform] = useState("google");
@@ -535,8 +552,12 @@ function PerformanceDashboard() {
   async function loadData() {
     setLoading(true); setError(null);
     try {
-      const [ads] = await Promise.all([fetchSheet2("Google Ads")]);
+      const [ads, meta] = await Promise.all([
+        fetchSheet2("Google Ads"),
+        fetchSheet2("Meta Ads").catch(()=>[]),
+      ]);
       setAdsData(ads);
+      setMetaData(meta);
       setLastUpdate(new Date().toLocaleTimeString("hu"));
       try {
         const fx=await fetch("https://open.er-api.com/v6/latest/EUR");
@@ -553,8 +574,14 @@ function PerformanceDashboard() {
   // Build all campaigns from Sheets data
   const allCamps = useMemo(()=>{
     const mkt = platform==="ossz"?"all":market;
+    if(platform==="meta") return buildCampaigns(metaData, platform, mkt, eurHuf);
+    if(platform==="ossz") {
+      const g = buildCampaigns(adsData, "google", "all", eurHuf);
+      const m = buildCampaigns(metaData, "meta", "all", eurHuf);
+      return [...g, ...m];
+    }
     return buildCampaigns(adsData, platform, mkt, eurHuf);
-  },[adsData,platform,market,eurHuf]);
+  },[adsData,metaData,platform,market,eurHuf]);
 
   const activeCamps = useMemo(()=>filterByPeriod(allCamps,periodDays),[allCamps,periodDays]);
 
