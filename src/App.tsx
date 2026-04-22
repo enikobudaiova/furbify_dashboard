@@ -278,6 +278,356 @@ function GrowthField({ prevYear, target, accent, onChangeTarget }) {
   );
 }
 
+// ─── PERFORMANCE DASHBOARD ────────────────────────────────────
+const SHEET_ID = "16XXkKGGvWvqEV4KxC2SahWYqNUgS6cN48vUE8DhFxlM";
+
+function parseCSVLine(line) {
+  const result = []; let cur = ""; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ""; }
+    else cur += line[i];
+  }
+  result.push(cur.trim()); return result;
+}
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const obj = {};
+    headers.forEach((h,i) => { obj[h] = vals[i]||""; });
+    return obj;
+  }).filter(r => Object.values(r).some(v=>v));
+}
+function parseNum(s) {
+  if (!s) return 0;
+  return parseFloat(s.replace(/\s/g,"").replace(",",".")) || 0;
+}
+async function fetchSheet(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Fetch failed: " + res.status);
+  return parseCSV(await res.text());
+}
+
+function KpiCard({ label, value, sub, color="#73AF1C", isUp=null }) {
+  return (
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:"14px 16px"}}>
+      <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>{label}</div>
+      <div style={{fontSize:22,fontWeight:800,color:"#fff"}}>{value}</div>
+      {sub&&<div style={{fontSize:11,marginTop:4,color:isUp===true?"#34d399":isUp===false?"#f87171":"#8899bb"}}>{sub}</div>}
+    </div>
+  );
+}
+
+function MiniBar({ label, val, max, color }) {
+  const pct = max > 0 ? Math.min((val/max)*100, 100) : 0;
+  return (
+    <div style={{marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#d8e4f8",marginBottom:3}}>
+        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"60%"}}>{label}</span>
+        <span style={{color,fontWeight:700,flexShrink:0}}>{val}</span>
+      </div>
+      <div style={{background:"#0d1520",borderRadius:3,height:6,overflow:"hidden"}}>
+        <div style={{height:"100%",background:color,width:`${pct}%`,borderRadius:3,transition:"width 0.5s"}}/>
+      </div>
+    </div>
+  );
+}
+
+function SimpleLineChart({ data, dataKey, color, height=80 }) {
+  if (!data||data.length<2) return <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",color:"#2e3a50",fontSize:11}}>Nincs elég adat</div>;
+  const vals = data.map(d=>d[dataKey]||0);
+  const max = Math.max(...vals)||1; const min = Math.min(...vals);
+  const range = max - min || 1;
+  const w = 100; const h = height;
+  const pts = vals.map((v,i)=>`${(i/(vals.length-1))*w},${h-((v-min)/range)*(h-8)+4}`).join(" ");
+  const poly = pts + ` ${w},${h} 0,${h}`;
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{display:"block"}}>
+      <defs><linearGradient id={`grad_${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={color} stopOpacity="0.25"/>
+        <stop offset="100%" stopColor={color} stopOpacity="0"/>
+      </linearGradient></defs>
+      <polygon points={poly} fill={`url(#grad_${dataKey})`}/>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function PerformanceDashboard() {
+  const [gaData,setGaData]   = useState([]);
+  const [adsData,setAdsData] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError]     = useState(null);
+  const [account,setAccount] = useState("all");
+  const [aiInsight,setAiInsight] = useState("");
+  const [aiLoading,setAiLoading] = useState(false);
+  const [lastUpdate,setLastUpdate] = useState(null);
+
+  useEffect(()=>{
+    loadData();
+  },[]);
+
+  async function loadData() {
+    setLoading(true); setError(null);
+    try {
+      const [ga, ads] = await Promise.all([
+        fetchSheet("Google Analytics"),
+        fetchSheet("Google Ads"),
+      ]);
+      setGaData(ga); setAdsData(ads);
+      setLastUpdate(new Date().toLocaleTimeString("hu"));
+    } catch(e) {
+      setError("Hiba az adatok betöltésekor: " + e.message);
+    } finally { setLoading(false); }
+  }
+
+  // ─ Process GA data ─
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const lastWeekSameDay = new Date(today); lastWeekSameDay.setDate(today.getDate()-8);
+  const fmt = d => d.toISOString().slice(0,10);
+
+  const gaFiltered = gaData.filter(r => {
+    if (account==="hu") return r["Account: Property name"]?.includes("furbify.hu");
+    if (account==="sk") return r["Account: Property name"]?.includes("furbify.sk");
+    return true;
+  });
+
+  // Napi trend (elmúlt 30 nap)
+  const trendMap = {};
+  gaFiltered.forEach(r => {
+    const d = r["Report: Date"];
+    if (!d) return;
+    if (!trendMap[d]) trendMap[d] = {date:d, users:0, events:0, views:0};
+    trendMap[d].users  += parseInt(r["Acquisition: Total users"]||0);
+    trendMap[d].events += parseInt(r["Key event: Key events"]||0);
+    trendMap[d].views  += parseInt(r["Engagement: Views"]||0);
+  });
+  const trendData = Object.values(trendMap).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+
+  const totalUsers30  = trendData.reduce((s,d)=>s+d.users,0);
+  const totalEvents30 = trendData.reduce((s,d)=>s+d.events,0);
+  const avgDaily = trendData.length ? Math.round(totalUsers30/trendData.length) : 0;
+
+  const yestData = trendMap[fmt(yesterday)];
+  const lwData   = trendMap[fmt(lastWeekSameDay)];
+  const yestUsers = yestData?.users||0;
+  const lwUsers   = lwData?.users||0;
+  const yestChg = lwUsers>0 ? Math.round(((yestUsers-lwUsers)/lwUsers)*100) : null;
+
+  // ─ Process Ads data ─
+  const adsFiltered = adsData.filter(r => {
+    if (account==="hu") return r["Account: Account name"]==="furbify.hu";
+    if (account==="sk") return r["Account: Account name"]==="furbify.sk";
+    return true;
+  });
+
+  // Kampány összesítő
+  const campMap = {};
+  adsFiltered.forEach(r => {
+    const name = r["Campaign: Campaign name"];
+    const acc  = r["Account: Account name"];
+    const key  = `${acc}::${name}`;
+    if (!campMap[key]) campMap[key] = {name, account:acc, spend:0, clicks:0, impressions:0, conversions:0, ctr:0, rows:0};
+    campMap[key].spend       += parseNum(r["Cost: Amount spend"]);
+    campMap[key].clicks      += parseInt(r["Performance: Clicks"]||0);
+    campMap[key].impressions += parseInt(r["Performance: Impressions"]||0);
+    campMap[key].conversions += parseNum(r["Conversions: Conversions"]);
+    campMap[key].rows++;
+  });
+  const campaigns = Object.values(campMap).map(c => ({
+    ...c,
+    ctr: c.impressions>0 ? ((c.clicks/c.impressions)*100).toFixed(2) : 0,
+    cpc: c.clicks>0 ? (c.spend/c.clicks).toFixed(account==="sk"?2:0) : 0,
+  })).sort((a,b)=>b.spend-a.spend);
+
+  const topCamps = campaigns.slice(0,8);
+  const maxSpend = topCamps[0]?.spend||1;
+  const totalSpend = campaigns.reduce((s,c)=>s+c.spend,0);
+  const totalClicks = campaigns.reduce((s,c)=>s+c.clicks,0);
+  const totalConv = campaigns.reduce((s,c)=>s+c.conversions,0);
+
+  // ─ AI insight ─
+  async function getAiInsight() {
+    setAiLoading(true);
+    const summary = `Furbify marketing adatok összefoglalója:
+- Összes látogató (30 nap): ${totalUsers30.toLocaleString("hu")}
+- Napi átlag: ${avgDaily.toLocaleString("hu")}
+- Tegnap: ${yestUsers.toLocaleString("hu")} (${yestChg!==null?(yestChg>0?"+":"")+yestChg+"%":"n/a"} vs múlt hét)
+- Google Ads összes költés: ${totalSpend.toLocaleString("hu")} (${account==="sk"?"€":"HUF"})
+- Összes kattintás: ${totalClicks.toLocaleString("hu")}
+- Konverziók: ${totalConv.toFixed(1)}
+- Top 3 kampány: ${topCamps.slice(0,3).map(c=>`${c.name} (${c.spend.toLocaleString("hu")} spend, ${c.conversions.toFixed(1)} conv)`).join(", ")}
+- Trend: ${trendData.slice(-7).map(d=>`${d.date}: ${d.users} user`).join(", ")}`;
+
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          messages:[{role:"user",content:`Te egy marketing elemző asszisztens vagy a Furbify webshopnál (felújított laptopok, PC-k, telefonok, projektorok). 
+Elemezd az alábbi adatokat és adj rövid, tömör reggeli összefoglalót (max 5-6 mondat) magyar nyelven. 
+Fókuszálj: mi ment jól, mi ment rosszul, és adj 1-2 konkrét javaslatot.
+
+${summary}`}]
+        })
+      });
+      const data = await resp.json();
+      setAiInsight(data.content?.[0]?.text||"Nem sikerült elemzést generálni.");
+    } catch(e) { setAiInsight("Hiba az AI elemzés során."); }
+    setAiLoading(false);
+  }
+
+  if (loading) return (
+    <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>
+      <div style={{fontSize:24,marginBottom:8}}>⟳</div>
+      Adatok betöltése a Google Sheets-ből...
+    </div>
+  );
+
+  if (error) return (
+    <div style={{textAlign:"center",padding:40}}>
+      <div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div>
+      <button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button>
+    </div>
+  );
+
+  const currency = account==="sk" ? "€" : account==="hu" ? "HUF" : "";
+
+  return (
+    <div>
+      {/* Fejléc */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:700,color:"#eef2fc"}}>📈 Kampány teljesítmény</div>
+          <div style={{fontSize:11,color:"#8899bb",marginTop:2}}>
+            Forrás: Google Sheets · {lastUpdate&&`Betöltve: ${lastUpdate}`}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {/* Fiók szűrő */}
+          {[{id:"all",label:"Összes"},{id:"hu",label:"🇭🇺 HU"},{id:"sk",label:"🇸🇰 SK"}].map(a=>(
+            <button key={a.id} onClick={()=>setAccount(a.id)}
+              style={{background:account===a.id?"#73AF1C22":"#1a2235",border:`1px solid ${account===a.id?"#73AF1C55":"#2e3a50"}`,color:account===a.id?"#73AF1C":"#8899bb",fontSize:11,padding:"5px 12px",borderRadius:6,cursor:"pointer",fontWeight:account===a.id?700:400}}>
+              {a.label}
+            </button>
+          ))}
+          <button onClick={loadData} style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#8899bb",fontSize:11,padding:"5px 12px",borderRadius:6,cursor:"pointer"}}>🔄 Frissítés</button>
+        </div>
+      </div>
+
+      {/* KPI kártyák */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+        <KpiCard label="Összes látogató (30 nap)" value={totalUsers30.toLocaleString("hu")} sub={`Napi átlag: ${avgDaily.toLocaleString("hu")}`}/>
+        <KpiCard label="Tegnap látogató" value={yestUsers.toLocaleString("hu")}
+          sub={yestChg!==null?`${yestChg>0?"▲":"▼"} ${yestChg>0?"+":""}${yestChg}% vs múlt hét`:null}
+          isUp={yestChg!==null?yestChg>=0:null}/>
+        <KpiCard label="Konverziók (30 nap)" value={totalConv.toFixed(0)} color="#08B7E4"
+          sub={`Google Ads összes`}/>
+        <KpiCard label={`Google Ads költés ${currency}`} value={totalSpend.toLocaleString("hu",{maximumFractionDigits:0})}
+          sub={`${totalClicks.toLocaleString("hu")} kattintás`} color="#FA8C05"/>
+      </div>
+
+      {/* Napi trend + AI insight */}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:4}}>📊 Napi látogatók trendje (elmúlt 30 nap)</div>
+          <div style={{fontSize:10,color:"#8899bb",marginBottom:10}}>Google Analytics</div>
+          <SimpleLineChart data={trendData} dataKey="users" color="#73AF1C" height={90}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#2e3a50",marginTop:4}}>
+            {trendData.length>0&&<span>{trendData[0]?.date}</span>}
+            {trendData.length>0&&<span>{trendData[trendData.length-1]?.date}</span>}
+          </div>
+        </div>
+
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:4}}>⚡ Tegnap vs. múlt hét</div>
+          <div style={{marginTop:10}}>
+            {[
+              {label:"Látogató", yest:yestUsers, lw:lwUsers, color:"#73AF1C"},
+              {label:"Konverzió", yest:yestData?.events||0, lw:lwData?.events||0, color:"#08B7E4"},
+              {label:"Oldalmegtekintés", yest:yestData?.views||0, lw:lwData?.views||0, color:"#FA8C05"},
+            ].map((item,i)=>{
+              const chg = item.lw>0?Math.round(((item.yest-item.lw)/item.lw)*100):null;
+              return (
+                <div key={i} style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
+                    <span style={{color:"#8899bb"}}>{item.label}</span>
+                    {chg!==null&&<span style={{color:chg>=0?"#34d399":"#f87171",fontWeight:700}}>{chg>=0?"▲":"▼"} {Math.abs(chg)}%</span>}
+                  </div>
+                  <div style={{display:"flex",gap:3,height:10}}>
+                    <div style={{flex:1,background:"#0d1520",borderRadius:2,overflow:"hidden"}}>
+                      <div style={{height:"100%",background:"#2e3a50",width:"60%"}}/>
+                    </div>
+                    <div style={{flex:1,background:"#0d1520",borderRadius:2,overflow:"hidden"}}>
+                      <div style={{height:"100%",background:item.color,
+                        width:`${item.lw>0?Math.min((item.yest/item.lw)*60,100):0}%`}}/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#4a5568",marginTop:2}}>
+                    <span>Múlt hét: {item.lw.toLocaleString("hu")}</span>
+                    <span>Tegnap: {item.yest.toLocaleString("hu")}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Top kampányok + AI */}
+      <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🏆 Top kampányok – Google Ads költés szerint</div>
+          {topCamps.length===0&&<div style={{fontSize:12,color:"#4a5568",textAlign:"center",padding:20}}>Nincs adat</div>}
+          {topCamps.map((c,i)=>(
+            <MiniBar key={i}
+              label={`${c.account==="furbify.hu"?"🇭🇺":"🇸🇰"} ${c.name}`}
+              val={`${c.spend.toLocaleString("hu",{maximumFractionDigits:0})} ${c.account==="furbify.hu"?"HUF":"€"}`}
+              max={maxSpend}
+              color={c.account==="furbify.hu"?"#73AF1C":"#08B7E4"}/>
+          ))}
+        </div>
+
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px",display:"flex",flexDirection:"column"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:4}}>🤖 AI reggeli elemzés</div>
+          <div style={{fontSize:10,color:"#8899bb",marginBottom:10}}>Claude elemzi az adatokat</div>
+          {!aiInsight&&!aiLoading&&(
+            <button onClick={getAiInsight}
+              style={{background:"#73AF1C22",border:"1px dashed #73AF1C55",color:"#73AF1C",fontSize:12,padding:"10px",borderRadius:8,cursor:"pointer",fontWeight:700,marginBottom:10}}>
+              ✨ Elemzés generálása
+            </button>
+          )}
+          {aiLoading&&<div style={{color:"#8899bb",fontSize:12,textAlign:"center",padding:20}}>⟳ Elemzés...</div>}
+          {aiInsight&&(
+            <div style={{fontSize:12,color:"#d8e4f8",lineHeight:1.7,flex:1,overflow:"auto"}}>
+              {aiInsight}
+              <button onClick={getAiInsight} style={{marginTop:10,display:"block",background:"none",border:"1px solid #2e3a50",color:"#8899bb",fontSize:10,padding:"4px 10px",borderRadius:6,cursor:"pointer"}}>🔄 Újra</button>
+            </div>
+          )}
+          {/* Kampány konverzió top 5 */}
+          {!aiInsight&&!aiLoading&&(
+            <div style={{marginTop:8}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:8}}>Top konverziók</div>
+              {campaigns.filter(c=>c.conversions>0).sort((a,b)=>b.conversions-a.conversions).slice(0,5).map((c,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:"1px solid #1a2538"}}>
+                  <span style={{color:"#8899bb",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"70%"}}>{c.name}</span>
+                  <span style={{color:"#34d399",fontWeight:700,flexShrink:0}}>{c.conversions.toFixed(1)} conv</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── CAMPAIGN CALENDAR ─────────────────────────────────────────
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
 const CAL_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b","#ec4899","#60a5fa"];
@@ -941,7 +1291,7 @@ export default function Dashboard() {
 
         {/* TABS */}
         <div style={{display:"flex",gap:2,borderBottom:"1px solid #1a3040",marginBottom:16}}>
-          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"traffic",label:"🚀 Forgalomterelés"},{id:"calendar",label:"📅 Kampánynaptár"}].map(tab=>(
+          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"traffic",label:"🚀 Forgalomterelés"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"transparent",border:"none",borderBottom:activeTab===tab.id?"2px solid #73AF1C":"2px solid transparent",color:activeTab===tab.id?"#fff":"#3a5a6e",fontSize:12.5,fontWeight:activeTab===tab.id?700:400,padding:"8px 18px",cursor:"pointer",marginBottom:-1,transition:"all 0.15s"}}>{tab.label}</button>
           ))}
         </div>
@@ -1105,6 +1455,11 @@ export default function Dashboard() {
             onSaveCategories={saveCalCategories}
             today={today}
           />
+        )}
+
+        {/* TELJESÍTMÉNY */}
+        {activeTab==="performance"&&(
+          <PerformanceDashboard/>
         )}
 
         <div style={{fontSize:10,color:"#3a5070",textAlign:"center",marginTop:20}}>
