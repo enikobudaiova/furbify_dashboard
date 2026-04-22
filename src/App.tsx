@@ -661,6 +661,7 @@ function PerformanceDashboard() {
               {insight.split("\n").map((line,i)=>(
                 <div key={i} style={{fontSize:12,color:"#d8e4f8",lineHeight:1.7,padding:"5px 0",borderBottom:"1px solid #1a2538"}}>{line}</div>
               ))}
+              <button onClick={()=>setInsight("")} style={{marginTop:8,background:"none",border:"1px solid #2e3a50",color:"#8899bb",fontSize:10,padding:"3px 10px",borderRadius:6,cursor:"pointer"}}>× Törlés</button>
             </div>
           ) : (
             <div>
@@ -676,10 +677,190 @@ function PerformanceDashboard() {
           )}
         </div>
       </div>
+
+      {/* ELŐZŐ NAP RÉSZLETES NÉZET */}
+      <YesterdayBreakdown adsData={adsData} gaData={gaData} account={account} eurHuf={eurHuf} fmt={fmt} chgPct={chgPct} toEur={toEur}/>
     </div>
   );
 }
 
+
+// ─── YESTERDAY BREAKDOWN ──────────────────────────────────────
+function YesterdayBreakdown({ adsData, gaData, account, eurHuf, fmt, chgPct, toEur }) {
+  const [open, setOpen] = useState(true);
+  const today = new Date();
+  const yest = new Date(today); yest.setDate(today.getDate()-1);
+  const yest2 = new Date(today); yest2.setDate(today.getDate()-2); // előző nap (2 napja)
+  const yestStr  = fmt(yest);
+  const yest2Str = fmt(yest2);
+
+  const accFilter = r => {
+    if (account==="hu") return r["Account: Account name"]==="furbify.hu";
+    if (account==="sk") return r["Account: Account name"]==="furbify.sk";
+    return r["Account: Account name"]==="furbify.hu"||r["Account: Account name"]==="furbify.sk";
+  };
+
+  // Kampányok tegnap és tegnapelőtt
+  const buildDay = dateStr => {
+    const m = {};
+    adsData.filter(r=>r["Report: Date"]===dateStr&&accFilter(r)).forEach(r=>{
+      const name = r["Campaign: Campaign name"]; if(!name) return;
+      const acc  = r["Account: Account name"];
+      const isHuf = acc==="furbify.hu";
+      const key = `${acc}::${name}`;
+      if (!m[key]) m[key] = {name,account:acc,isHuf,spendEur:0,clicks:0,impressions:0,conversions:0,cpc:0};
+      m[key].spendEur    += toEur(parseNum(r["Cost: Amount spend"]),isHuf);
+      m[key].clicks      += parseInt(r["Performance: Clicks"]||0);
+      m[key].impressions += parseInt(r["Performance: Impressions"]||0);
+      m[key].conversions += parseNum(r["Conversions: Conversions"]);
+    });
+    return Object.values(m).map(c=>({...c,
+      ctr: c.impressions>0?((c.clicks/c.impressions)*100).toFixed(2):0,
+      cpc: c.clicks>0?(c.spendEur/c.clicks).toFixed(2):0,
+    })).sort((a,b)=>b.spendEur-a.spendEur);
+  };
+
+  const yestCamps  = buildDay(yestStr);
+  const yest2Camps = buildDay(yest2Str);
+  const yest2Map   = {};
+  yest2Camps.forEach(c=>{yest2Map[`${c.account}::${c.name}`]=c;});
+
+  const yestTotalSpend = yestCamps.reduce((s,c)=>s+c.spendEur,0);
+  const yestTotalConv  = yestCamps.reduce((s,c)=>s+c.conversions,0);
+  const yestTotalClick = yestCamps.reduce((s,c)=>s+c.clicks,0);
+  const yestTotalImpr  = yestCamps.reduce((s,c)=>s+c.impressions,0);
+  const prev2Spend = yest2Camps.reduce((s,c)=>s+c.spendEur,0);
+  const prev2Conv  = yest2Camps.reduce((s,c)=>s+c.conversions,0);
+  const prev2Click = yest2Camps.reduce((s,c)=>s+c.clicks,0);
+
+  // GA tegnap
+  const gaYest = gaData.filter(r=>{
+    const okDate = r["Report: Date"]===yestStr;
+    if (account==="hu") return okDate&&r["Account: Property name"]?.includes("furbify.hu");
+    if (account==="sk") return okDate&&r["Account: Property name"]?.includes("furbify.sk");
+    return okDate&&(r["Account: Property name"]?.includes("furbify.hu")||r["Account: Property name"]?.includes("furbify.sk"));
+  });
+  const yestUsers  = gaYest.reduce((s,r)=>s+parseInt(r["Acquisition: Total users"]||0),0);
+  const yestEvents = gaYest.reduce((s,r)=>s+parseInt(r["Key event: Key events"]||0),0);
+
+  const maxSpendY = yestCamps[0]?.spendEur||1;
+  const maxConvY  = Math.max(...yestCamps.map(c=>c.conversions),0.1);
+
+  const spendChg = chgPct(yestTotalSpend, prev2Spend);
+  const convChg  = chgPct(yestTotalConv, prev2Conv);
+  const clickChg = chgPct(yestTotalClick, prev2Click);
+
+  // Részletes szöveges elemzés
+  const analysis = [];
+  if (yestCamps.length > 0) {
+    analysis.push(`📅 Tegnap (${yestStr}) összesen:`);
+    analysis.push(`• Látogatók: ${yestUsers.toLocaleString("hu")} fő, Key events: ${yestEvents}`);
+    analysis.push(`• Google Ads költés: €${yestTotalSpend.toFixed(2)}${spendChg!==null?` (${spendChg>=0?"▲ +":"▼ "}${spendChg}% vs tegnapelőtt)`:""}`);
+    analysis.push(`• Kattintások: ${yestTotalClick.toLocaleString("hu")}${clickChg!==null?` (${clickChg>=0?"▲ +":"▼ "}${clickChg}%)`:""}`);
+    analysis.push(`• Konverziók: ${yestTotalConv.toFixed(1)}${convChg!==null?` (${convChg>=0?"▲ +":"▼ "}${convChg}% vs tegnapelőtt)`:""}`);
+    const bestConv = [...yestCamps].sort((a,b)=>b.conversions-a.conversions)[0];
+    if (bestConv?.conversions>0) analysis.push(`🏆 Legjobb konverzió: ${bestConv.name} → ${bestConv.conversions.toFixed(1)} db`);
+    const bestCtr = [...yestCamps].sort((a,b)=>parseFloat(b.ctr)-parseFloat(a.ctr))[0];
+    if (bestCtr) analysis.push(`🎯 Legjobb CTR: ${bestCtr.name} → ${bestCtr.ctr}%`);
+    const noConv = yestCamps.filter(c=>c.spendEur>1&&c.conversions===0);
+    if (noConv.length>0) analysis.push(`⚠️ Konverzió nélkül, de költött: ${noConv.slice(0,2).map(c=>`${c.name} (€${c.spendEur.toFixed(2)})`).join(", ")}`);
+    const improving = yestCamps.filter(c=>{
+      const p=yest2Map[`${c.account}::${c.name}`];
+      return p&&c.conversions>p.conversions&&p.conversions>=0;
+    });
+    if (improving.length>0) analysis.push(`📈 Javuló kampányok: ${improving.slice(0,2).map(c=>c.name).join(", ")}`);
+  } else {
+    analysis.push("Nincs tegnapi Google Ads adat.");
+  }
+
+  return (
+    <div style={{marginTop:14,background:"#1a2235",border:"1px solid #08B7E444",borderRadius:12,overflow:"hidden"}}>
+      {/* Fejléc */}
+      <div onClick={()=>setOpen(s=>!s)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",cursor:"pointer",userSelect:"none"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>📅 Tegnap részletes nézet – {yestStr}</span>
+          {yestCamps.length>0&&(
+            <div style={{display:"flex",gap:6}}>
+              <span style={{fontSize:11,background:"#08B7E422",color:"#08B7E4",padding:"2px 10px",borderRadius:10}}>€{yestTotalSpend.toFixed(0)} költés</span>
+              <span style={{fontSize:11,background:"#73AF1C22",color:"#73AF1C",padding:"2px 10px",borderRadius:10}}>{yestTotalConv.toFixed(1)} konverzió</span>
+              {spendChg!==null&&<span style={{fontSize:11,background:spendChg>=0?"#73AF1C22":"#7f1d1d",color:spendChg>=0?"#73AF1C":"#f87171",padding:"2px 10px",borderRadius:10}}>{spendChg>=0?"▲ +":"▼ "}{spendChg}% vs tegnapelőtt</span>}
+            </div>
+          )}
+        </div>
+        <span style={{fontSize:14,color:"#8899bb",transform:open?"rotate(180deg)":"rotate(0deg)",display:"inline-block",transition:"transform 0.2s"}}>▼</span>
+      </div>
+
+      {open&&(
+        <div style={{padding:"0 18px 18px"}}>
+          {/* KPI összesítők */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+            {[
+              {label:"Látogatók (GA)", cur:yestUsers, prev:null, color:"#73AF1C"},
+              {label:"Google Ads költés (€)", cur:`€${yestTotalSpend.toFixed(2)}`, prev:`€${prev2Spend.toFixed(2)}`, chg:spendChg, color:"#FA8C05"},
+              {label:"Kattintások", cur:yestTotalClick, prev:prev2Click, chg:clickChg, color:"#08B7E4"},
+              {label:"Konverziók", cur:yestTotalConv.toFixed(1), prev:prev2Conv.toFixed(1), chg:convChg, color:"#34d399"},
+            ].map((k,i)=>(
+              <div key={i} style={{background:"#0d1520",border:"1px solid #2e3a50",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#8899bb",marginBottom:3}}>{k.label}</div>
+                <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{typeof k.cur==="number"?k.cur.toLocaleString("hu"):k.cur}</div>
+                {k.prev&&<div style={{fontSize:10,color:"#4a5568",marginTop:2}}>Tegnapelőtt: {k.prev}</div>}
+                {k.chg!==null&&<div style={{fontSize:11,color:k.chg>=0?"#34d399":"#f87171",fontWeight:700,marginTop:2}}>{k.chg>=0?"▲ +":"▼ "}{Math.abs(k.chg)}%</div>}
+              </div>
+            ))}
+          </div>
+
+          {/* Kampány táblázat + elemzés */}
+          <div style={{display:"grid",gridTemplateColumns:"1.8fr 1fr",gap:12}}>
+            {/* Kampány táblázat */}
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:8}}>Kampányok tegnap</div>
+              {/* Fejléc */}
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 8px",background:"#0d1520",borderRadius:"6px 6px 0 0",marginBottom:2}}>
+                {["Kampány","Költés €","Kattintás","CTR%","CPC €","Konv."].map((h,i)=>(
+                  <div key={i} style={{fontSize:10,color:"#4a5568",fontWeight:700,textAlign:i>0?"right":"left"}}>{h}</div>
+                ))}
+              </div>
+              {yestCamps.length===0&&<div style={{fontSize:12,color:"#4a5568",textAlign:"center",padding:20}}>Nincs tegnapi adat</div>}
+              {yestCamps.map((c,i)=>{
+                const prev = yest2Map[`${c.account}::${c.name}`];
+                const cChg = prev?chgPct(c.conversions,prev.conversions):null;
+                const sChg = prev?chgPct(c.spendEur,prev.spendEur):null;
+                return (
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"7px 8px",background:i%2===0?"#0d1520":"#111827",borderRadius:i===yestCamps.length-1?"0 0 6px 6px":0,alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:11,color:"#d8e4f8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.account==="furbify.hu"?"🇭🇺":"🇸🇰"} {c.name}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:11,color:"#fff",fontWeight:600}}>{c.spendEur.toFixed(2)}</div>
+                      {sChg!==null&&<div style={{fontSize:9,color:sChg>=0?"#34d399":"#f87171"}}>{sChg>=0?"▲":"▼"}{Math.abs(sChg)}%</div>}
+                    </div>
+                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.clicks.toLocaleString("hu")}</div>
+                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.ctr}%</div>
+                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.cpc}</div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:11,color:c.conversions>0?"#34d399":"#4a5568",fontWeight:c.conversions>0?700:400}}>{c.conversions.toFixed(1)}</div>
+                      {cChg!==null&&c.conversions>0&&<div style={{fontSize:9,color:cChg>=0?"#34d399":"#f87171"}}>{cChg>=0?"▲":"▼"}{Math.abs(cChg)}%</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Elemzés */}
+            <div style={{background:"#0d1520",borderRadius:10,padding:"14px 16px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:10}}>🔍 Tegnap elemzése</div>
+              {analysis.map((line,i)=>(
+                <div key={i} style={{fontSize:11.5,color:line.startsWith("📅")||line.startsWith("•")?"#8899bb":"#d8e4f8",lineHeight:1.7,paddingBottom:4,borderBottom:line.startsWith("📅")?"1px solid #1a2538":"none",marginBottom:line.startsWith("📅")?6:0,fontWeight:line.startsWith("🏆")||line.startsWith("📈")||line.startsWith("⚠️")?600:400}}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── CAMPAIGN CALENDAR ─────────────────────────────────────────
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
