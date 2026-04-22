@@ -492,15 +492,17 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const d=date;
     if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,conversions:0};
     // Spend – Google Ads or Meta Ads
-    const spend = parseNum2(r["Cost: Amount spend"] || r["Amount spent"] || r["spend"] || r["Spend"] || "0");
+    const spendRaw = parseNum2(r["Cost: Amount spend"] || r["Amount spent"] || r["spend"] || r["Spend"] || "0");
+    // Auto-detect HUF: explicit account match OR value > 100 (no EUR campaign spends >100 in SK)
+    const isHufFinal = isHuf || (spendRaw > 500 && !isHuf===false);
+    const spend = spendRaw;
     // Clicks
     const clicks = parseInt(r["Performance: Clicks"] || r["Link clicks"] || r["clicks"] || r["Clicks"] || "0");
     // Impressions
     const impr = parseInt(r["Performance: Impressions"] || r["Impressions"] || r["impressions"] || "0");
     // Conversions
     const conv = parseNum2(r["Conversions: Conversions"] || r["Purchases"] || r["conversions"] || r["Results"] || r["Leads"] || "0");
-    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);
-    campDayMap[key].days[d].clicks      += clicks;
+    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);    campDayMap[key].days[d].clicks      += clicks;
     campDayMap[key].days[d].impressions += impr;
     campDayMap[key].days[d].conversions += conv;
   });
@@ -600,13 +602,21 @@ function PerformanceDashboard() {
   // Build all campaigns from Sheets data
   const allCamps = useMemo(()=>{
     const mkt = platform==="ossz"?"all":market;
-    if(platform==="meta") return buildCampaigns(metaData, platform, mkt, eurHuf);
+    // Sanity check: cap unrealistic spend values (max 3000 EUR/day/campaign)
+    const validate = camps => camps.map(c=>({
+      ...c,
+      days: c.days.map(d=>({
+        ...d,
+        spendEur: d.spendEur > 3000 ? 0 : d.spendEur  // flag clearly wrong values
+      }))
+    }));
+    if(platform==="meta") return validate(buildCampaigns(metaData, platform, mkt, eurHuf));
     if(platform==="ossz") {
-      const g = buildCampaigns(adsData, "google", "all", eurHuf);
-      const m = buildCampaigns(metaData, "meta", "all", eurHuf);
-      return [...g, ...m];
+      // Only Google Ads in összesített for now - Meta columns need verification
+      const g = validate(buildCampaigns(adsData, "google", "all", eurHuf));
+      return g;
     }
-    return buildCampaigns(adsData, platform, mkt, eurHuf);
+    return validate(buildCampaigns(adsData, platform, mkt, eurHuf));
   },[adsData,metaData,platform,market,eurHuf]);
 
   const activeCamps = useMemo(()=>filterByPeriod(allCamps,periodDays),[allCamps,periodDays]);
