@@ -354,54 +354,57 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
 // ─── AI INSIGHTS ──────────────────────────────────────────────
 function AdsAIInsights({ campaigns, platform, market, period }) {
   const [insight,setInsight] = useState(null);
-  const [loading,setLoading] = useState(false);
-  const [err,setErr]         = useState(null);
 
-  const analyze = async () => {
-    setLoading(true); setErr(null); setInsight(null);
-    const summary = campaigns.map(c=>({
-      name:c.name, roas:c.roas, clicks:c.clicks, conversions:c.conversions, ctr:c.ctr, cost:c.spendEur||c.cost||0,
-      trend_roas:+(((c.days||[]).slice(-3).reduce((s,d)=>s+d.roas,0)/3)-((c.days||[]).slice(0,3).reduce((s,d)=>s+d.roas,0)/3)).toFixed(2),
-    }));
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:900,
-          system:`Te egy tapasztalt performance marketing elemző vagy a Furbify webshopnál (felújított laptopok, PC-k, telefonok, projektorok, 🇭🇺 HU és 🇸🇰 SK piac).
-Elemezd a kampányadatokat és adj tömör konkrét javaslatokat.
-Válaszolj KIZÁRÓLAG valid JSON-nel:
-{"insights":[{"type":"up"|"down"|"warn","campaign":"kampánynév","title":"rövid cím max 6 szó","text":"konkrét javaslat magyarul max 20 szó"}]}
-Maximum 5 insight. Csak a legfontosabbakat.`,
-          messages:[{role:"user",content:`Platform: ${platform}, Piac: ${market}, Időszak: ${period}\nKampányok: ${JSON.stringify(summary)}`}]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
-      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
-      setInsight(parsed.insights);
-    } catch(e) { setErr("Elemzés sikertelen. Próbáld újra."); }
-    finally { setLoading(false); }
+  const analyze = () => {
+    if(!campaigns.length){ setInsight([{type:"warn",title:"Nincs adat",text:"Nincs elegendő kampányadat az elemzéshez."}]); return; }
+    const insights = [];
+    const sorted  = [...campaigns].sort((a,b)=>b.roas-a.roas);
+    const byConv  = [...campaigns].sort((a,b)=>b.conversions-a.conversions);
+    const bySpend = [...campaigns].sort((a,b)=>b.spendEur-a.spendEur);
+    const totalSpend = campaigns.reduce((s,c)=>s+c.spendEur,0);
+    const totalConv  = campaigns.reduce((s,c)=>s+c.conversions,0);
+    const avgRoas    = campaigns.length?+(campaigns.reduce((s,c)=>s+c.roas,0)/campaigns.length).toFixed(2):0;
+    const avgCtr     = campaigns.length?+(campaigns.reduce((s,c)=>s+parseFloat(c.ctr),0)/campaigns.length).toFixed(2):0;
+
+    if(sorted[0]?.roas>0)
+      insights.push({type:"up",title:sorted[0].name.slice(0,28)+" – legjobb ROAS",
+        text:"ROAS: "+sorted[0].roas.toFixed(1)+"x, "+sorted[0].conversions.toFixed(0)+" konverzió. Ez a legjobb teljesítményű kampány."});
+
+    if(byConv[0]?.conversions>0&&byConv[0].id!==sorted[0]?.id)
+      insights.push({type:"up",title:"Legtöbb konverzió",
+        text:byConv[0].name.slice(0,28)+": "+byConv[0].conversions.toFixed(0)+" konverzió, €"+byConv[0].spendEur.toFixed(0)+" költéssel."});
+
+    const highSpendLowConv=bySpend.filter(c=>c.spendEur>totalSpend*0.15&&c.conversions<totalConv*0.05);
+    if(highSpendLowConv[0])
+      insights.push({type:"warn",title:"Magas költés, kevés konverzió",
+        text:highSpendLowConv[0].name.slice(0,28)+": €"+highSpendLowConv[0].spendEur.toFixed(0)+" költés, csak "+highSpendLowConv[0].conversions.toFixed(0)+" konverzió. Optimalizálás javasolt."});
+
+    const lowCtr=campaigns.filter(c=>parseFloat(c.ctr)<avgCtr*0.5&&c.impressions>1000);
+    if(lowCtr[0])
+      insights.push({type:"down",title:"Alacsony CTR: "+lowCtr[0].name.slice(0,20),
+        text:lowCtr[0].ctr+"% CTR, átlag alatt ("+avgCtr+"%). Hirdetésszöveg felülvizsgálata javasolt."});
+
+    insights.push({type:avgRoas>=3?"up":"warn",title:"Átlagos ROAS: "+avgRoas.toFixed(1)+"x",
+      text:"Összes kampány átlaga "+period+" alatt. "+(avgRoas>=4?"Kiváló teljesítmény!":avgRoas>=2.5?"Megfelelő szint.":"Optimalizálás szükséges lehet.")});
+
+    setInsight(insights.slice(0,5));
   };
 
-  const iconStyle=(type)=>({width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0,
+  const iconStyle=(type)=>({width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+    fontSize:12,flexShrink:0,
     background:type==="up"?"#1e3a1a":type==="down"?"#3a1a1a":"#3a2a0a",
     color:type==="up"?"#34d399":type==="down"?"#f87171":"#fbbf24"});
 
   return (
     <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:14}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>✦ AI elemzés & javaslatok</span>
-        <button onClick={analyze} disabled={loading}
-          style={{fontSize:12,padding:"5px 12px",borderRadius:6,border:"1px solid #2e3a50",background:"transparent",color:loading?"#4a5568":"#d8e4f8",cursor:loading?"not-allowed":"pointer"}}>
-          {loading?"⏳ Elemzés...":insight?"↻ Frissít":"Elemzés indítása"}
+        <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>✦ Kampány elemzés</span>
+        <button onClick={analyze}
+          style={{fontSize:12,padding:"5px 12px",borderRadius:6,border:"1px solid #2e3a50",background:"transparent",color:"#d8e4f8",cursor:"pointer"}}>
+          {insight?"↻ Frissít":"Elemzés indítása"}
         </button>
       </div>
-      {err&&<div style={{fontSize:12,color:AC.red}}>{err}</div>}
-      {!insight&&!loading&&!err&&<div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>Kattints az "Elemzés indítása" gombra — az AI kiértékeli az aktív kampányokat és konkrét javaslatokat ad.</div>}
-      {loading&&<div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>⏳ Kampányok elemzése folyamatban...</div>}
+      {!insight&&<div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>Kattints az "Elemzés indítása" gombra — automatikusan kiértékeli a kampányokat és konkrét javaslatokat ad.</div>}
       {insight&&insight.map((ins,i)=>(
         <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderTop:i>0?"1px solid #1a2538":"none",alignItems:"flex-start"}}>
           <div style={iconStyle(ins.type)}>{ins.type==="up"?"▲":ins.type==="down"?"▼":"!"}</div>
@@ -414,6 +417,7 @@ Maximum 5 insight. Csak a legfontosabbakat.`,
     </div>
   );
 }
+
 
 // ─── PERFORMANCE DASHBOARD ────────────────────────────────────
 const SHEET_ID = "16XXkKGGvWvqEV4KxC2SahWYqNUgS6cN48vUE8DhFxlM";
@@ -543,6 +547,9 @@ function PerformanceDashboard() {
   const [platform,setPlatform] = useState("google");
   const [market,setMarket]     = useState("hu");
   const [period,setPeriod]     = useState("7 nap");
+  const [customStart,setCustomStart] = useState("");
+  const [customEnd,setCustomEnd]     = useState("");
+  const [showDatePicker,setShowDatePicker] = useState(false);
   const [sortBy,setSortBy]     = useState("roas");
   const [eurHuf,setEurHuf]     = useState(362);
   const [lastUpdate,setLastUpdate] = useState(null);
@@ -568,7 +575,13 @@ function PerformanceDashboard() {
     finally { setLoading(false); }
   }
 
-  const periodDays = PERIOD_DAYS[period]||7;
+  const periodDays = useMemo(()=>{
+    if(period==="egyéni"&&customStart&&customEnd){
+      const diff = Math.ceil((new Date(customEnd)-new Date(customStart))/86400000)+1;
+      return Math.max(diff,1);
+    }
+    return PERIOD_DAYS[period]||7;
+  },[period,customStart,customEnd]);
   const accentColor = platform==="meta"?PLATFORM_COLOR.meta:platform==="ossz"?AC.teal:PLATFORM_COLOR.google;
 
   // Build all campaigns from Sheets data
@@ -642,8 +655,42 @@ function PerformanceDashboard() {
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           {lastUpdate&&<span style={{fontSize:11,color:"#4a5568"}}>Frissítve: {lastUpdate}</span>}
           <button onClick={loadData} style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#8899bb",fontSize:11,padding:"4px 10px",borderRadius:6,cursor:"pointer"}}>🔄</button>
-          <div style={{display:"flex",gap:4}}>
+          <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
             {["Tegnap","7 nap","14 nap","30 nap"].map(l=><PBtn key={l} label={l}/>)}
+            {/* Egyéni dátumválasztó */}
+            <div style={{position:"relative"}}>
+              <div onClick={()=>setShowDatePicker(s=>!s)}
+                style={{padding:"5px 11px",borderRadius:6,cursor:"pointer",whiteSpace:"nowrap",
+                  border:`1px solid ${period==="egyéni"?"#08B7E4":"#2e3a50"}`,
+                  background:period==="egyéni"?"#08B7E422":"transparent",
+                  color:period==="egyéni"?"#08B7E4":"#8899bb",fontSize:12}}>
+                {period==="egyéni"&&customStart&&customEnd
+                  ? `${customStart} – ${customEnd}`
+                  : "📅 Egyéni"}
+              </div>
+              {showDatePicker&&(
+                <div style={{position:"absolute",top:"110%",right:0,background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:14,zIndex:100,minWidth:260,boxShadow:"0 8px 24px rgba(0,0,0,0.4)"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:10}}>Egyéni időszak</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    <div>
+                      <div style={{fontSize:10,color:"#8899bb",marginBottom:3}}>Kezdő dátum</div>
+                      <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}
+                        style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 10px",outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:"#8899bb",marginBottom:3}}>Záró dátum</div>
+                      <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}
+                        style={{width:"100%",background:"#0d1520",border:"1px solid #2e3a50",borderRadius:6,color:"#eef2fc",fontSize:12,padding:"6px 10px",outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                    <button onClick={()=>{
+                      if(customStart&&customEnd){setPeriod("egyéni");setShowDatePicker(false);}
+                    }} style={{background:"#08B7E422",border:"1px solid #08B7E455",color:"#08B7E4",fontSize:12,padding:"7px",borderRadius:6,cursor:"pointer",fontWeight:700,marginTop:4}}>
+                      Alkalmaz
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1388,7 +1435,7 @@ export default function Dashboard() {
 
         {/* TABS */}
         <div style={{display:"flex",gap:2,borderBottom:"1px solid #1a3040",marginBottom:16}}>
-          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"traffic",label:"🚀 Forgalomterelés"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].map(tab=>(
+          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"transparent",border:"none",borderBottom:activeTab===tab.id?"2px solid #73AF1C":"2px solid transparent",color:activeTab===tab.id?"#fff":"#3a5a6e",fontSize:12.5,fontWeight:activeTab===tab.id?700:400,padding:"8px 18px",cursor:"pointer",marginBottom:-1,transition:"all 0.15s"}}>{tab.label}</button>
           ))}
         </div>
