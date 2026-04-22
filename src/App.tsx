@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
@@ -355,514 +356,426 @@ function SimpleLineChart({ data, dataKey, color, height=80 }) {
     </svg>
   );
 }
+// ─── ADS DASHBOARD COLORS & HELPERS ──────────────────────────
+const AC = { blue:"#185FA5", green:"#3B6D11", amber:"#854F0B", red:"#A32D2D", purple:"#533AB7", teal:"#0F6E56" };
+const PLATFORM_COLOR = { google:"#185FA5", meta:"#533AB7" };
+const fmtN = (n,d=0) => n==null?"–":Number(n).toLocaleString("hu-HU",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pctN = n => `${fmtN(n,1)}%`;
+const PERIOD_DAYS = { "Tegnap":1, "7 nap":7, "14 nap":14, "30 nap":30 };
+
+// ─── KPI CARD ─────────────────────────────────────────────────
+const AdsKPICard = ({ label, value, trend, color }) => (
+  <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:"12px 14px"}}>
+    <div style={{fontSize:10,color:"#8899bb",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>{label}</div>
+    <div style={{fontSize:22,fontWeight:700,color:color||"#fff",lineHeight:1}}>{value}</div>
+    {trend!=null&&<div style={{fontSize:11,marginTop:4,color:trend>=0?AC.green:AC.red}}>{trend>=0?"▲":"▼"} {Math.abs(trend)}% vs előző</div>}
+  </div>
+);
+
+// ─── TOOLTIP ──────────────────────────────────────────────────
+const AdsTip = ({ active, payload, label }) => {
+  if (!active||!payload?.length) return null;
+  return (
+    <div style={{background:"#0d1117",border:"1px solid #2e3a50",borderRadius:8,padding:"8px 12px",fontSize:12}}>
+      <div style={{color:"#8899bb",marginBottom:4}}>{label}</div>
+      {payload.map((p,i)=><div key={i} style={{color:p.color}}>{p.name}: <b>{p.value}</b></div>)}
+    </div>
+  );
+};
+
+// ─── RANKING TABLE ────────────────────────────────────────────
+function AdsRankingTable({ campaigns, sortBy, market }) {
+  const sorted = [...campaigns].sort((a,b)=>b[sortBy]-a[sortBy]);
+  const max = sorted[0]?.[sortBy]||1;
+  const barColor = sortBy==="roas"?AC.green:sortBy==="clicks"?AC.blue:AC.amber;
+  const prevMap = useMemo(()=>{
+    const m={};
+    campaigns.forEach(c=>{
+      const all=c.days||[]; const half=Math.floor(all.length/2);
+      const prev=all.slice(0,half); const curr=all.slice(half);
+      const prevVal=prev.reduce((s,d)=>s+(d[sortBy]||0),0)/(prev.length||1);
+      const currVal=curr.reduce((s,d)=>s+(d[sortBy]||0),0)/(curr.length||1);
+      m[c.id]=prevVal?+((currVal-prevVal)/prevVal*100).toFixed(1):0;
+    });
+    return m;
+  },[campaigns,sortBy]);
+  const fmtVal=(c)=>{
+    if(sortBy==="roas") return `${fmtN(c.roas,1)}x`;
+    if(sortBy==="clicks") return fmtN(c.clicks);
+    return fmtN(c.conversions);
+  };
+  return (
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,overflow:"hidden"}}>
+      {sorted.map((c,i)=>{
+        const pctBar=Math.round((c[sortBy]/max)*100);
+        const delta=prevMap[c.id]||0;
+        return (
+          <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderBottom:i<sorted.length-1?"1px solid #1a2538":"none"}}>
+            <div style={{width:18,fontSize:12,color:"#8899bb",textAlign:"center",flexShrink:0,fontWeight:600}}>{i+1}</div>
+            <div style={{flex:1,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#d8e4f8"}}>{c.name}</div>
+            <div style={{width:80,flexShrink:0}}>
+              <div style={{height:5,background:"#0d1520",borderRadius:3,overflow:"hidden"}}>
+                <div style={{width:`${pctBar}%`,height:"100%",background:barColor,borderRadius:3,transition:"width .4s"}}/>
+              </div>
+            </div>
+            <div style={{width:50,fontSize:13,textAlign:"right",fontWeight:700,flexShrink:0,color:"#fff"}}>{fmtVal(c)}</div>
+            <div style={{width:55,fontSize:11,textAlign:"right",color:delta>=0?AC.green:AC.red,flexShrink:0}}>{delta>=0?"▲":"▼"} {Math.abs(delta)}%</div>
+          </div>
+        );
+      })}
+      {sorted.length===0&&<div style={{padding:20,textAlign:"center",fontSize:12,color:"#4a5568"}}>Nincs adat</div>}
+    </div>
+  );
+}
+
+// ─── AI INSIGHTS ──────────────────────────────────────────────
+function AdsAIInsights({ campaigns, platform, market, period }) {
+  const [insight,setInsight] = useState(null);
+  const [loading,setLoading] = useState(false);
+  const [err,setErr]         = useState(null);
+
+  const analyze = async () => {
+    setLoading(true); setErr(null); setInsight(null);
+    const summary = campaigns.map(c=>({
+      name:c.name, roas:c.roas, clicks:c.clicks, conversions:c.conversions, ctr:c.ctr, cost:c.spendEur||c.cost||0,
+      trend_roas:+(((c.days||[]).slice(-3).reduce((s,d)=>s+d.roas,0)/3)-((c.days||[]).slice(0,3).reduce((s,d)=>s+d.roas,0)/3)).toFixed(2),
+    }));
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:900,
+          system:`Te egy tapasztalt performance marketing elemző vagy a Furbify webshopnál (felújított laptopok, PC-k, telefonok, projektorok, 🇭🇺 HU és 🇸🇰 SK piac).
+Elemezd a kampányadatokat és adj tömör konkrét javaslatokat.
+Válaszolj KIZÁRÓLAG valid JSON-nel:
+{"insights":[{"type":"up"|"down"|"warn","campaign":"kampánynév","title":"rövid cím max 6 szó","text":"konkrét javaslat magyarul max 20 szó"}]}
+Maximum 5 insight. Csak a legfontosabbakat.`,
+          messages:[{role:"user",content:`Platform: ${platform}, Piac: ${market}, Időszak: ${period}\nKampányok: ${JSON.stringify(summary)}`}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
+      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      setInsight(parsed.insights);
+    } catch(e) { setErr("Elemzés sikertelen. Próbáld újra."); }
+    finally { setLoading(false); }
+  };
+
+  const iconStyle=(type)=>({width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0,
+    background:type==="up"?"#1e3a1a":type==="down"?"#3a1a1a":"#3a2a0a",
+    color:type==="up"?"#34d399":type==="down"?"#f87171":"#fbbf24"});
+
+  return (
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>✦ AI elemzés & javaslatok</span>
+        <button onClick={analyze} disabled={loading}
+          style={{fontSize:12,padding:"5px 12px",borderRadius:6,border:"1px solid #2e3a50",background:"transparent",color:loading?"#4a5568":"#d8e4f8",cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"⏳ Elemzés...":insight?"↻ Frissít":"Elemzés indítása"}
+        </button>
+      </div>
+      {err&&<div style={{fontSize:12,color:AC.red}}>{err}</div>}
+      {!insight&&!loading&&!err&&<div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>Kattints az "Elemzés indítása" gombra — az AI kiértékeli az aktív kampányokat és konkrét javaslatokat ad.</div>}
+      {loading&&<div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>⏳ Kampányok elemzése folyamatban...</div>}
+      {insight&&insight.map((ins,i)=>(
+        <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderTop:i>0?"1px solid #1a2538":"none",alignItems:"flex-start"}}>
+          <div style={iconStyle(ins.type)}>{ins.type==="up"?"▲":ins.type==="down"?"▼":"!"}</div>
+          <div>
+            <div style={{fontSize:13,fontWeight:600,color:"#eef2fc",marginBottom:2}}>{ins.title}</div>
+            <div style={{fontSize:12,color:"#8899bb"}}>{ins.text}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── PERFORMANCE DASHBOARD ────────────────────────────────────
+const SHEET_ID = "16XXkKGGvWvqEV4KxC2SahWYqNUgS6cN48vUE8DhFxlM";
+
+function parseCSVLine(line) {
+  const result=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'){inQ=!inQ;}
+    else if(line[i]===","&&!inQ){result.push(cur.trim());cur="";}
+    else cur+=line[i];
+  }
+  result.push(cur.trim()); return result;
+}
+function parseCSV2(text) {
+  const lines=text.trim().split("\n");
+  const headers=parseCSVLine(lines[0]);
+  return lines.slice(1).map(line=>{
+    const vals=parseCSVLine(line); const obj={};
+    headers.forEach((h,i)=>{obj[h]=vals[i]||"";});
+    return obj;
+  }).filter(r=>Object.values(r).some(v=>v));
+}
+function parseNum2(s){if(!s)return 0;return parseFloat(s.replace(/\s/g,"").replace(",","."))||0;}
+async function fetchSheet2(sheetName){
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res=await fetch(url);
+  if(!res.ok)throw new Error("Fetch failed: "+res.status);
+  return parseCSV2(await res.text());
+}
+
+function buildCampaigns(adsData, platform, market, eurHuf) {
+  const toEur=(val,isHuf)=>isHuf?val/eurHuf:val;
+  const filtered = adsData.filter(r=>{
+    const acc=r["Account: Account name"]||"";
+    const isHu=acc==="furbify.hu"; const isSk=acc==="furbify.sk";
+    if(market==="hu"&&!isHu) return false;
+    if(market==="sk"&&!isSk) return false;
+    if(market==="all"&&!isHu&&!isSk) return false;
+    return true;
+  });
+
+  // Group by date+campaign
+  const campDayMap={};
+  filtered.forEach(r=>{
+    const name=r["Campaign: Campaign name"]; if(!name) return;
+    const acc=r["Account: Account name"];
+    const isHuf=acc==="furbify.hu";
+    const date=r["Report: Date"]||"";
+    const key=`${acc}::${name}`;
+    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key};
+    const d=date;
+    if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,conversions:0};
+    campDayMap[key].days[d].spendEur    +=toEur(parseNum2(r["Cost: Amount spend"]),isHuf);
+    campDayMap[key].days[d].clicks      +=parseInt(r["Performance: Clicks"]||0);
+    campDayMap[key].days[d].impressions +=parseInt(r["Performance: Impressions"]||0);
+    campDayMap[key].days[d].conversions +=parseNum2(r["Conversions: Conversions"]);
+  });
+
+  return Object.values(campDayMap).map(c=>{
+    const days=Object.values(c.days).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({
+      ...d, date:d.date.slice(5), cost:d.spendEur,
+      ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
+      roas:d.spendEur>0?+(d.conversions*50/d.spendEur).toFixed(2):0,
+    }));
+    const totSpend=days.reduce((s,d)=>s+d.spendEur,0);
+    const totClicks=days.reduce((s,d)=>s+d.clicks,0);
+    const totImpr=days.reduce((s,d)=>s+d.impressions,0);
+    const totConv=days.reduce((s,d)=>s+d.conversions,0);
+    return {
+      ...c, days, status:"active",
+      spendEur:totSpend, clicks:totClicks, impressions:totImpr, conversions:totConv,
+      ctr:totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0,
+      roas:totSpend>0?+(totConv*50/totSpend).toFixed(2):0,
+      cost:totSpend,
+    };
+  }).sort((a,b)=>b.spendEur-a.spendEur);
+}
+
+function filterByPeriod(camps, days) {
+  return camps.map(c=>({
+    ...c,
+    days: c.days.slice(-days),
+    spendEur: c.days.slice(-days).reduce((s,d)=>s+d.spendEur,0),
+    clicks:   c.days.slice(-days).reduce((s,d)=>s+d.clicks,0),
+    impressions: c.days.slice(-days).reduce((s,d)=>s+d.impressions,0),
+    conversions: c.days.slice(-days).reduce((s,d)=>s+d.conversions,0),
+    cost: c.days.slice(-days).reduce((s,d)=>s+d.spendEur,0),
+    ctr: (()=>{const sl=c.days.slice(-days);const imp=sl.reduce((s,d)=>s+d.impressions,0);const cl=sl.reduce((s,d)=>s+d.clicks,0);return imp>0?+((cl/imp)*100).toFixed(2):0;})(),
+    roas: (()=>{const sl=c.days.slice(-days);const sp=sl.reduce((s,d)=>s+d.spendEur,0);const cv=sl.reduce((s,d)=>s+d.conversions,0);return sp>0?+(cv*50/sp).toFixed(2):0;})(),
+  }));
+}
+
+function buildChartData2(camps, days) {
+  if(!camps.length) return [];
+  const allDates=[...new Set(camps.flatMap(c=>c.days.map(d=>d.date)))].sort().slice(-days);
+  return allDates.map(date=>{
+    let clicks=0,imp=0,conv=0,roasList=[];
+    camps.forEach(c=>{
+      const d=c.days.find(x=>x.date===date);
+      if(d){clicks+=d.clicks;imp+=d.impressions;conv+=d.conversions;roasList.push(d.roas||0);}
+    });
+    return {date,clicks,ctr:imp>0?+((clicks/imp)*100).toFixed(2):0,conversions:conv,roas:roasList.length?+(roasList.reduce((a,b)=>a+b,0)/roasList.length).toFixed(2):0};
+  });
+}
 
 function PerformanceDashboard() {
-  const [gaData,setGaData]     = useState([]);
   const [adsData,setAdsData]   = useState([]);
   const [loading,setLoading]   = useState(true);
   const [error,setError]       = useState(null);
-  const [account,setAccount]   = useState("all");
-  const [days,setDays]         = useState(30);
+  const [platform,setPlatform] = useState("google");
+  const [market,setMarket]     = useState("hu");
+  const [period,setPeriod]     = useState("7 nap");
+  const [sortBy,setSortBy]     = useState("roas");
   const [eurHuf,setEurHuf]     = useState(362);
   const [lastUpdate,setLastUpdate] = useState(null);
-  const [insight,setInsight]   = useState("");
 
   useEffect(()=>{ loadData(); },[]);
 
   async function loadData() {
     setLoading(true); setError(null);
     try {
-      const [ga, ads] = await Promise.all([
-        fetchSheet("Google Analytics"),
-        fetchSheet("Google Ads"),
-      ]);
-      setGaData(ga); setAdsData(ads);
+      const [ads] = await Promise.all([fetchSheet2("Google Ads")]);
+      setAdsData(ads);
       setLastUpdate(new Date().toLocaleTimeString("hu"));
-      // EUR/HUF élő árfolyam
       try {
-        const fx = await fetch("https://open.er-api.com/v6/latest/EUR");
-        const fxd = await fx.json();
-        if (fxd.rates?.HUF) setEurHuf(Math.round(fxd.rates.HUF));
+        const fx=await fetch("https://open.er-api.com/v6/latest/EUR");
+        const fxd=await fx.json();
+        if(fxd.rates?.HUF) setEurHuf(Math.round(fxd.rates.HUF));
       } catch { setEurHuf(362); }
-    } catch(e) {
-      setError("Hiba az adatok betöltésekor: " + e.message);
-    } finally { setLoading(false); }
+    } catch(e) { setError("Hiba az adatok betöltésekor: "+e.message); }
+    finally { setLoading(false); }
   }
 
-  const today = new Date();
-  const fmt = d => d.toISOString().slice(0,10);
+  const periodDays = PERIOD_DAYS[period]||7;
+  const accentColor = platform==="meta"?PLATFORM_COLOR.meta:platform==="ossz"?AC.teal:PLATFORM_COLOR.google;
 
-  // Időszak határok
-  const periodEnd   = new Date(today); periodEnd.setDate(today.getDate()-1);
-  const periodStart = new Date(today); periodStart.setDate(today.getDate()-days);
-  const prevEnd     = new Date(periodStart); prevEnd.setDate(prevEnd.getDate()-1);
-  const prevStart   = new Date(prevEnd); prevStart.setDate(prevEnd.getDate()-days+1);
+  // Build all campaigns from Sheets data
+  const allCamps = useMemo(()=>{
+    const mkt = platform==="ossz"?"all":market;
+    return buildCampaigns(adsData, platform, mkt, eurHuf);
+  },[adsData,platform,market,eurHuf]);
 
-  const inPeriod = d => d >= fmt(periodStart) && d <= fmt(periodEnd);
-  const inPrev   = d => d >= fmt(prevStart)   && d <= fmt(prevEnd);
+  const activeCamps = useMemo(()=>filterByPeriod(allCamps,periodDays),[allCamps,periodDays]);
 
-  // GA szűrés
-  const gaFilter = r => {
-    if (account==="hu") return r["Account: Property name"]?.includes("furbify.hu");
-    if (account==="sk") return r["Account: Property name"]?.includes("furbify.sk");
-    return r["Account: Property name"]?.includes("furbify.hu") || r["Account: Property name"]?.includes("furbify.sk");
-  };
-  const gaFiltered = gaData.filter(gaFilter);
+  const summary = useMemo(()=>{
+    const imp=activeCamps.reduce((s,c)=>s+c.impressions,0);
+    const cl=activeCamps.reduce((s,c)=>s+c.clicks,0);
+    const sp=activeCamps.reduce((s,c)=>s+c.spendEur,0);
+    const cv=activeCamps.reduce((s,c)=>s+c.conversions,0);
+    const roas=activeCamps.length?+(activeCamps.reduce((s,c)=>s+c.roas,0)/activeCamps.length).toFixed(2):0;
+    return {impressions:imp,clicks:cl,spendEur:sp,conversions:cv,ctr:imp?+((cl/imp)*100).toFixed(2):0,roas};
+  },[activeCamps]);
 
-  // Napi trend map
-  const trendMap = {};
-  gaFiltered.forEach(r => {
-    const d = r["Report: Date"]; if (!d) return;
-    if (!trendMap[d]) trendMap[d] = {date:d,users:0,events:0,views:0};
-    trendMap[d].users  += parseInt(r["Acquisition: Total users"]||0);
-    trendMap[d].events += parseInt(r["Key event: Key events"]||0);
-    trendMap[d].views  += parseInt(r["Engagement: Views"]||0);
-  });
+  const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
 
-  const trendData = Object.values(trendMap).sort((a,b)=>a.date.localeCompare(b.date));
-  const curTrend  = trendData.filter(d=>inPeriod(d.date));
-  const prevTrend = trendData.filter(d=>inPrev(d.date));
-
-  const sumUsers = arr => arr.reduce((s,d)=>s+d.users,0);
-  const sumEvt   = arr => arr.reduce((s,d)=>s+d.events,0);
-
-  const curUsers  = sumUsers(curTrend);
-  const prevUsers = sumUsers(prevTrend);
-  const curEvt    = sumEvt(curTrend);
-  const prevEvt   = sumEvt(prevTrend);
-  const avgDaily  = curTrend.length ? Math.round(curUsers/curTrend.length) : 0;
-  const chgPct = (cur,prev) => prev>0 ? Math.round(((cur-prev)/prev)*100) : null;
-  const userChg = chgPct(curUsers, prevUsers);
-  const evtChg  = chgPct(curEvt, prevEvt);
-
-  // Ads szűrés + HUF→EUR átváltás
-  const toEur = (val, isHuf) => isHuf ? val/eurHuf : val;
-
-  const adsFilter = r => {
-    if (account==="hu") return r["Account: Account name"]==="furbify.hu" && inPeriod(r["Report: Date"]);
-    if (account==="sk") return r["Account: Account name"]==="furbify.sk" && inPeriod(r["Report: Date"]);
-    return (r["Account: Account name"]==="furbify.hu"||r["Account: Account name"]==="furbify.sk") && inPeriod(r["Report: Date"]);
-  };
-  const adsPrev = r => {
-    if (account==="hu") return r["Account: Account name"]==="furbify.hu" && inPrev(r["Report: Date"]);
-    if (account==="sk") return r["Account: Account name"]==="furbify.sk" && inPrev(r["Report: Date"]);
-    return (r["Account: Account name"]==="furbify.hu"||r["Account: Account name"]==="furbify.sk") && inPrev(r["Report: Date"]);
-  };
-
-  const buildCampMap = rows => {
-    const m = {};
-    rows.forEach(r => {
-      const name = r["Campaign: Campaign name"]; if(!name) return;
-      const acc  = r["Account: Account name"];
-      const isHuf = acc==="furbify.hu";
-      const key = `${acc}::${name}`;
-      if (!m[key]) m[key] = {name, account:acc, isHuf, spendEur:0, clicks:0, impressions:0, conversions:0};
-      m[key].spendEur    += toEur(parseNum(r["Cost: Amount spend"]), isHuf);
-      m[key].clicks      += parseInt(r["Performance: Clicks"]||0);
-      m[key].impressions += parseInt(r["Performance: Impressions"]||0);
-      m[key].conversions += parseNum(r["Conversions: Conversions"]);
-    });
-    return Object.values(m).map(c=>({...c,
-      ctr: c.impressions>0?((c.clicks/c.impressions)*100).toFixed(2):0,
-      cpc: c.clicks>0?(c.spendEur/c.clicks).toFixed(2):0,
-    })).sort((a,b)=>b.spendEur-a.spendEur);
-  };
-
-  const curCamps  = buildCampMap(adsData.filter(adsFilter));
-  const prevCamps = buildCampMap(adsData.filter(adsPrev));
-
-  // Előző időszak lookup
-  const prevCampMap = {};
-  prevCamps.forEach(c => { prevCampMap[`${c.account}::${c.name}`] = c; });
-
-  const topCamps     = curCamps.slice(0,10);
-  const maxSpend     = topCamps[0]?.spendEur||1;
-  const totalSpendEur= curCamps.reduce((s,c)=>s+c.spendEur,0);
-  const prevSpendEur = prevCamps.reduce((s,c)=>s+c.spendEur,0);
-  const totalClicks  = curCamps.reduce((s,c)=>s+c.clicks,0);
-  const prevClicks   = prevCamps.reduce((s,c)=>s+c.clicks,0);
-  const totalConv    = curCamps.reduce((s,c)=>s+c.conversions,0);
-  const prevConv     = prevCamps.reduce((s,c)=>s+c.conversions,0);
-  const spendChg     = chgPct(totalSpendEur, prevSpendEur);
-  const clickChg     = chgPct(totalClicks, prevClicks);
-  const convChg      = chgPct(totalConv, prevConv);
-
-  // Automatikus szöveges elemzés
-  function generateInsight() {
-    const lines = [];
-    const period = `elmúlt ${days} nap`;
-    if (userChg!==null) lines.push(`👥 Látogatók: ${curUsers.toLocaleString("hu")} (${userChg>=0?"▲ +":"▼ "}${userChg}% vs előző ${days} nap)`);
-    if (convChg!==null) lines.push(`🎯 Konverziók: ${totalConv.toFixed(0)} (${convChg>=0?"▲ +":"▼ "}${convChg}% vs előző ${days} nap)`);
-    if (spendChg!==null) lines.push(`💰 Google Ads költés: €${totalSpendEur.toFixed(0)} (${spendChg>=0?"▲ +":"▼ "}${spendChg}%)`);
-    const bestCamp = topCamps[0];
-    if (bestCamp) lines.push(`🏆 Legjobb kampány: ${bestCamp.name} – €${bestCamp.spendEur.toFixed(0)} költés, ${bestCamp.conversions.toFixed(1)} konverzió`);
-    const bestConv = [...curCamps].sort((a,b)=>b.conversions-a.conversions)[0];
-    if (bestConv&&bestConv.conversions>0) lines.push(`✅ Legtöbb konverzió: ${bestConv.name} (${bestConv.conversions.toFixed(1)} db)`);
-    const declining = curCamps.filter(c=>{
-      const p = prevCampMap[`${c.account}::${c.name}`];
-      return p && c.spendEur < p.spendEur*0.7;
-    }).slice(0,1);
-    if (declining[0]) lines.push(`⚠️ Visszaeső kampány: ${declining[0].name} – figyelmet igényel`);
-    setInsight(lines.join("\n"));
-  }
-
-  if (loading) return (
-    <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>
-      <div style={{fontSize:24,marginBottom:8}}>⟳</div>
-      Adatok betöltése a Google Sheets-ből...
+  const Tab=({id,label})=>(
+    <div onClick={()=>setPlatform(id)} style={{padding:"10px 18px",fontSize:13,cursor:"pointer",
+      borderBottom:`2px solid ${platform===id?accentColor:"transparent"}`,
+      color:platform===id?"#eef2fc":"#8899bb",fontWeight:platform===id?700:400,whiteSpace:"nowrap"}}>
+      {label}
     </div>
   );
-  if (error) return (
-    <div style={{textAlign:"center",padding:40}}>
-      <div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div>
-      <button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button>
+  const SubTab=({id,label})=>(
+    <div onClick={()=>setMarket(id)} style={{padding:"4px 14px",borderRadius:20,
+      border:`1px solid ${market===id?"#d8e4f8":"#2e3a50"}`,fontSize:12,cursor:"pointer",
+      background:market===id?"#263045":"transparent",color:market===id?"#d8e4f8":"#8899bb",fontWeight:market===id?600:400}}>
+      {label}
     </div>
   );
+  const PBtn=({label})=>(
+    <div onClick={()=>setPeriod(label)} style={{padding:"5px 11px",borderRadius:6,
+      border:`1px solid ${period===label?"#08B7E4":"#2e3a50"}`,
+      background:period===label?"#08B7E422":"transparent",
+      color:period===label?"#08B7E4":"#8899bb",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>
+      {label}
+    </div>
+  );
+  const SortBtn=({id,label})=>(
+    <div onClick={()=>setSortBy(id)} style={{padding:"4px 12px",borderRadius:20,
+      border:`1px solid ${sortBy===id?"#2e3a50":"#1a2538"}`,fontSize:12,cursor:"pointer",
+      background:sortBy===id?"#263045":"transparent",color:sortBy===id?"#d8e4f8":"#8899bb",fontWeight:sortBy===id?600:400}}>
+      {label}
+    </div>
+  );
+
+  if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
+  if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
   return (
-    <div>
-      {/* Fejléc */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
-        <div>
-          <div style={{fontSize:15,fontWeight:700,color:"#eef2fc"}}>📈 Kampány teljesítmény</div>
-          <div style={{fontSize:11,color:"#8899bb",marginTop:2}}>
-            Időszak: {fmt(periodStart)} – {fmt(periodEnd)} · vs. {fmt(prevStart)} – {fmt(prevEnd)} · {lastUpdate&&`Frissítve: ${lastUpdate}`} · 1 EUR = {eurHuf} HUF
-          </div>
+    <div style={{fontFamily:"inherit"}}>
+
+      {/* TOPBAR */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
+        <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
+          Furbify Ads Dashboard
+          <span style={{fontSize:11,color:"#8899bb",fontWeight:400}}>— {activeCamps.length} kampány · 1 EUR = {eurHuf} HUF</span>
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          {/* Időszak */}
-          {[7,14,30].map(d=>(
-            <button key={d} onClick={()=>setDays(d)}
-              style={{background:days===d?"#08B7E422":"#1a2235",border:`1px solid ${days===d?"#08B7E455":"#2e3a50"}`,color:days===d?"#08B7E4":"#8899bb",fontSize:11,padding:"5px 10px",borderRadius:6,cursor:"pointer",fontWeight:days===d?700:400}}>
-              {d} nap
-            </button>
-          ))}
-          <div style={{width:1,height:20,background:"#2e3a50"}}/>
-          {/* Fiók */}
-          {[{id:"all",label:"Összes"},{id:"hu",label:"🇭🇺 HU"},{id:"sk",label:"🇸🇰 SK"}].map(a=>(
-            <button key={a.id} onClick={()=>setAccount(a.id)}
-              style={{background:account===a.id?"#73AF1C22":"#1a2235",border:`1px solid ${account===a.id?"#73AF1C55":"#2e3a50"}`,color:account===a.id?"#73AF1C":"#8899bb",fontSize:11,padding:"5px 10px",borderRadius:6,cursor:"pointer",fontWeight:account===a.id?700:400}}>
-              {a.label}
-            </button>
-          ))}
-          <button onClick={loadData} style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#8899bb",fontSize:11,padding:"5px 10px",borderRadius:6,cursor:"pointer"}}>🔄</button>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          {lastUpdate&&<span style={{fontSize:11,color:"#4a5568"}}>Frissítve: {lastUpdate}</span>}
+          <button onClick={loadData} style={{background:"#1a2235",border:"1px solid #2e3a50",color:"#8899bb",fontSize:11,padding:"4px 10px",borderRadius:6,cursor:"pointer"}}>🔄</button>
+          <div style={{display:"flex",gap:4}}>
+            {["Tegnap","7 nap","14 nap","30 nap"].map(l=><PBtn key={l} label={l}/>)}
+          </div>
         </div>
       </div>
 
-      {/* KPI kártyák – jelenlegi vs előző */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-        {[
-          {label:`Látogatók (${days} nap)`, cur:curUsers.toLocaleString("hu"), chg:userChg, sub:`Előző: ${prevUsers.toLocaleString("hu")}`, color:"#73AF1C"},
-          {label:"Napi átlag", cur:avgDaily.toLocaleString("hu"), chg:null, sub:`${fmt(periodStart)} – ${fmt(periodEnd)}`, color:"#73AF1C"},
-          {label:"Konverziók", cur:totalConv.toFixed(0), chg:convChg, sub:`Előző: ${prevConv.toFixed(0)}`, color:"#08B7E4"},
-          {label:"Google Ads költés (€)", cur:`€${totalSpendEur.toFixed(0)}`, chg:spendChg, sub:`Előző: €${prevSpendEur.toFixed(0)}`, color:"#FA8C05"},
-        ].map((k,i)=>(
-          <div key={i} style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:"14px 16px"}}>
-            <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>{k.label}</div>
-            <div style={{fontSize:22,fontWeight:800,color:"#fff"}}>{k.cur}</div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
-              <span style={{fontSize:10,color:"#4a5568"}}>{k.sub}</span>
-              {k.chg!==null&&<span style={{fontSize:11,color:k.chg>=0?"#34d399":"#f87171",fontWeight:700}}>{k.chg>=0?"▲ +":"▼ "}{Math.abs(k.chg)}%</span>}
-            </div>
-          </div>
-        ))}
+      {/* PLATFORM TABS */}
+      <div style={{display:"flex",gap:0,borderBottom:"1px solid #2e3a50",marginBottom:0,overflowX:"auto"}}>
+        <Tab id="google" label="🔵 Google Ads"/>
+        <Tab id="meta"   label="🟣 Meta"/>
+        <Tab id="ossz"   label="∑ Összesített"/>
       </div>
 
-      {/* Trend + összehasonlítás */}
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:12}}>
-        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:4}}>📊 Napi látogatók – {days} napos trend</div>
-          <div style={{fontSize:10,color:"#8899bb",marginBottom:8}}>Zöld = jelenlegi időszak · Szürke = előző időszak</div>
-          <div style={{position:"relative",height:90}}>
-            <SimpleLineChart data={prevTrend} dataKey="users" color="#2e3a50" height={90}/>
-            <div style={{position:"absolute",top:0,left:0,right:0,bottom:0}}>
-              <SimpleLineChart data={curTrend} dataKey="users" color="#73AF1C" height={90}/>
-            </div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#2e3a50",marginTop:4}}>
-            {curTrend.length>0&&<span>{curTrend[0]?.date}</span>}
-            {curTrend.length>0&&<span>{curTrend[curTrend.length-1]?.date}</span>}
-          </div>
-        </div>
-
-        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:12}}>📊 Jelenlegi vs előző {days} nap</div>
-          {[
-            {label:"Látogató", cur:curUsers, prev:prevUsers, color:"#73AF1C"},
-            {label:"Konverzió", cur:totalConv, prev:prevConv, color:"#08B7E4"},
-            {label:"Kattintás", cur:totalClicks, prev:prevClicks, color:"#FA8C05"},
-            {label:"Költés (€)", cur:totalSpendEur, prev:prevSpendEur, color:"#E45050"},
-          ].map((item,i)=>{
-            const chg = chgPct(item.cur, item.prev);
-            const maxV = Math.max(item.cur, item.prev)||1;
-            return (
-              <div key={i} style={{marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
-                  <span style={{color:"#8899bb"}}>{item.label}</span>
-                  {chg!==null&&<span style={{color:chg>=0?"#34d399":"#f87171",fontWeight:700}}>{chg>=0?"▲ +":"▼ "}{Math.abs(chg)}%</span>}
-                </div>
-                <div style={{display:"flex",gap:2,height:8}}>
-                  <div style={{width:`${(item.prev/maxV)*100}%`,background:"#2e3a50",borderRadius:2,minWidth:2}}/>
-                  <div style={{width:`${(item.cur/maxV)*100}%`,background:item.color,borderRadius:2,opacity:0.85,minWidth:2}}/>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#4a5568",marginTop:2}}>
-                  <span>Előző: {typeof item.prev==="number"&&item.prev%1!==0?item.prev.toFixed(1):Math.round(item.prev).toLocaleString("hu")}</span>
-                  <span>Jelenlegi: {typeof item.cur==="number"&&item.cur%1!==0?item.cur.toFixed(1):Math.round(item.cur).toLocaleString("hu")}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Top kampányok + elemzés */}
-      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:12}}>
-        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🏆 Kampányok – jelenlegi vs előző időszak (€)</div>
-          {topCamps.length===0&&<div style={{fontSize:12,color:"#4a5568",textAlign:"center",padding:20}}>Nincs adat a kiválasztott időszakra</div>}
-          {topCamps.map((c,i)=>{
-            const prev = prevCampMap[`${c.account}::${c.name}`];
-            const chg  = prev ? chgPct(c.spendEur, prev.spendEur) : null;
-            const convChgC = prev ? chgPct(c.conversions, prev.conversions) : null;
-            return (
-              <div key={i} style={{marginBottom:10,paddingBottom:10,borderBottom:"1px solid #1a2538"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                  <div style={{fontSize:11.5,color:"#d8e4f8",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"60%"}}>
-                    {c.account==="furbify.hu"?"🇭🇺":"🇸🇰"} {c.name}
-                  </div>
-                  <div style={{display:"flex",gap:6,flexShrink:0}}>
-                    {chg!==null&&<span style={{fontSize:10,color:chg>=0?"#34d399":"#f87171",fontWeight:700}}>{chg>=0?"▲":"▼"}{Math.abs(chg)}%</span>}
-                    <span style={{fontSize:10,color:"#8899bb"}}>€{c.spendEur.toFixed(0)}</span>
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:8,marginBottom:3}}>
-                  {prev&&<div style={{height:4,background:"#2e3a50",borderRadius:2,width:`${(prev.spendEur/maxSpend)*100}%`,minWidth:2}}/>}
-                  <div style={{height:4,background:c.account==="furbify.hu"?"#73AF1C":"#08B7E4",borderRadius:2,width:`${(c.spendEur/maxSpend)*100}%`,minWidth:2,opacity:0.85}}/>
-                </div>
-                <div style={{display:"flex",gap:12,fontSize:10,color:"#4a5568"}}>
-                  <span>Katt: {c.clicks.toLocaleString("hu")}</span>
-                  <span>CTR: {c.ctr}%</span>
-                  <span>Conv: {c.conversions.toFixed(1)}{convChgC!==null&&<span style={{color:convChgC>=0?"#34d399":"#f87171",marginLeft:3}}>{convChgC>=0?"▲":"▼"}{Math.abs(convChgC)}%</span>}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:"16px 18px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#eef2fc"}}>📋 Gyors elemzés</div>
-            <button onClick={generateInsight} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:10,padding:"4px 10px",borderRadius:6,cursor:"pointer",fontWeight:700}}>
-              ✨ Generálás
-            </button>
-          </div>
-          {insight ? (
-            <div>
-              {insight.split("\n").map((line,i)=>(
-                <div key={i} style={{fontSize:12,color:"#d8e4f8",lineHeight:1.7,padding:"5px 0",borderBottom:"1px solid #1a2538"}}>{line}</div>
-              ))}
-              <button onClick={()=>setInsight("")} style={{marginTop:8,background:"none",border:"1px solid #2e3a50",color:"#8899bb",fontSize:10,padding:"3px 10px",borderRadius:6,cursor:"pointer"}}>× Törlés</button>
-            </div>
-          ) : (
-            <div>
-              <div style={{fontSize:11,color:"#4a5568",marginBottom:12}}>Kattints a "Generálás" gombra az automatikus elemzéshez</div>
-              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:8}}>Top konverziók</div>
-              {curCamps.filter(c=>c.conversions>0).sort((a,b)=>b.conversions-a.conversions).slice(0,6).map((c,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:"1px solid #1a2538"}}>
-                  <span style={{color:"#8899bb",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"70%"}}>{c.account==="furbify.hu"?"🇭🇺":"🇸🇰"} {c.name}</span>
-                  <span style={{color:"#34d399",fontWeight:700,flexShrink:0}}>{c.conversions.toFixed(1)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ELŐZŐ NAP RÉSZLETES NÉZET */}
-      <YesterdayBreakdown adsData={adsData} gaData={gaData} account={account} eurHuf={eurHuf} fmt={fmt} chgPct={chgPct} toEur={toEur}/>
-    </div>
-  );
-}
-
-
-// ─── YESTERDAY BREAKDOWN ──────────────────────────────────────
-function YesterdayBreakdown({ adsData, gaData, account, eurHuf, fmt, chgPct, toEur }) {
-  const [open, setOpen] = useState(true);
-  const today = new Date();
-  const yest = new Date(today); yest.setDate(today.getDate()-1);
-  const yest2 = new Date(today); yest2.setDate(today.getDate()-2); // előző nap (2 napja)
-  const yestStr  = fmt(yest);
-  const yest2Str = fmt(yest2);
-
-  const accFilter = r => {
-    if (account==="hu") return r["Account: Account name"]==="furbify.hu";
-    if (account==="sk") return r["Account: Account name"]==="furbify.sk";
-    return r["Account: Account name"]==="furbify.hu"||r["Account: Account name"]==="furbify.sk";
-  };
-
-  // Kampányok tegnap és tegnapelőtt
-  const buildDay = dateStr => {
-    const m = {};
-    adsData.filter(r=>r["Report: Date"]===dateStr&&accFilter(r)).forEach(r=>{
-      const name = r["Campaign: Campaign name"]; if(!name) return;
-      const acc  = r["Account: Account name"];
-      const isHuf = acc==="furbify.hu";
-      const key = `${acc}::${name}`;
-      if (!m[key]) m[key] = {name,account:acc,isHuf,spendEur:0,clicks:0,impressions:0,conversions:0,cpc:0};
-      m[key].spendEur    += toEur(parseNum(r["Cost: Amount spend"]),isHuf);
-      m[key].clicks      += parseInt(r["Performance: Clicks"]||0);
-      m[key].impressions += parseInt(r["Performance: Impressions"]||0);
-      m[key].conversions += parseNum(r["Conversions: Conversions"]);
-    });
-    return Object.values(m).map(c=>({...c,
-      ctr: c.impressions>0?((c.clicks/c.impressions)*100).toFixed(2):0,
-      cpc: c.clicks>0?(c.spendEur/c.clicks).toFixed(2):0,
-    })).sort((a,b)=>b.spendEur-a.spendEur);
-  };
-
-  const yestCamps  = buildDay(yestStr);
-  const yest2Camps = buildDay(yest2Str);
-  const yest2Map   = {};
-  yest2Camps.forEach(c=>{yest2Map[`${c.account}::${c.name}`]=c;});
-
-  const yestTotalSpend = yestCamps.reduce((s,c)=>s+c.spendEur,0);
-  const yestTotalConv  = yestCamps.reduce((s,c)=>s+c.conversions,0);
-  const yestTotalClick = yestCamps.reduce((s,c)=>s+c.clicks,0);
-  const yestTotalImpr  = yestCamps.reduce((s,c)=>s+c.impressions,0);
-  const prev2Spend = yest2Camps.reduce((s,c)=>s+c.spendEur,0);
-  const prev2Conv  = yest2Camps.reduce((s,c)=>s+c.conversions,0);
-  const prev2Click = yest2Camps.reduce((s,c)=>s+c.clicks,0);
-
-  // GA tegnap
-  const gaYest = gaData.filter(r=>{
-    const okDate = r["Report: Date"]===yestStr;
-    if (account==="hu") return okDate&&r["Account: Property name"]?.includes("furbify.hu");
-    if (account==="sk") return okDate&&r["Account: Property name"]?.includes("furbify.sk");
-    return okDate&&(r["Account: Property name"]?.includes("furbify.hu")||r["Account: Property name"]?.includes("furbify.sk"));
-  });
-  const yestUsers  = gaYest.reduce((s,r)=>s+parseInt(r["Acquisition: Total users"]||0),0);
-  const yestEvents = gaYest.reduce((s,r)=>s+parseInt(r["Key event: Key events"]||0),0);
-
-  const maxSpendY = yestCamps[0]?.spendEur||1;
-  const maxConvY  = Math.max(...yestCamps.map(c=>c.conversions),0.1);
-
-  const spendChg = chgPct(yestTotalSpend, prev2Spend);
-  const convChg  = chgPct(yestTotalConv, prev2Conv);
-  const clickChg = chgPct(yestTotalClick, prev2Click);
-
-  // Részletes szöveges elemzés
-  const analysis = [];
-  if (yestCamps.length > 0) {
-    analysis.push(`📅 Tegnap (${yestStr}) összesen:`);
-    analysis.push(`• Látogatók: ${yestUsers.toLocaleString("hu")} fő, Key events: ${yestEvents}`);
-    analysis.push(`• Google Ads költés: €${yestTotalSpend.toFixed(2)}${spendChg!==null?` (${spendChg>=0?"▲ +":"▼ "}${spendChg}% vs tegnapelőtt)`:""}`);
-    analysis.push(`• Kattintások: ${yestTotalClick.toLocaleString("hu")}${clickChg!==null?` (${clickChg>=0?"▲ +":"▼ "}${clickChg}%)`:""}`);
-    analysis.push(`• Konverziók: ${yestTotalConv.toFixed(1)}${convChg!==null?` (${convChg>=0?"▲ +":"▼ "}${convChg}% vs tegnapelőtt)`:""}`);
-    const bestConv = [...yestCamps].sort((a,b)=>b.conversions-a.conversions)[0];
-    if (bestConv?.conversions>0) analysis.push(`🏆 Legjobb konverzió: ${bestConv.name} → ${bestConv.conversions.toFixed(1)} db`);
-    const bestCtr = [...yestCamps].sort((a,b)=>parseFloat(b.ctr)-parseFloat(a.ctr))[0];
-    if (bestCtr) analysis.push(`🎯 Legjobb CTR: ${bestCtr.name} → ${bestCtr.ctr}%`);
-    const noConv = yestCamps.filter(c=>c.spendEur>1&&c.conversions===0);
-    if (noConv.length>0) analysis.push(`⚠️ Konverzió nélkül, de költött: ${noConv.slice(0,2).map(c=>`${c.name} (€${c.spendEur.toFixed(2)})`).join(", ")}`);
-    const improving = yestCamps.filter(c=>{
-      const p=yest2Map[`${c.account}::${c.name}`];
-      return p&&c.conversions>p.conversions&&p.conversions>=0;
-    });
-    if (improving.length>0) analysis.push(`📈 Javuló kampányok: ${improving.slice(0,2).map(c=>c.name).join(", ")}`);
-  } else {
-    analysis.push("Nincs tegnapi Google Ads adat.");
-  }
-
-  return (
-    <div style={{marginTop:14,background:"#1a2235",border:"1px solid #08B7E444",borderRadius:12,overflow:"hidden"}}>
-      {/* Fejléc */}
-      <div onClick={()=>setOpen(s=>!s)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",cursor:"pointer",userSelect:"none"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>📅 Tegnap részletes nézet – {yestStr}</span>
-          {yestCamps.length>0&&(
-            <div style={{display:"flex",gap:6}}>
-              <span style={{fontSize:11,background:"#08B7E422",color:"#08B7E4",padding:"2px 10px",borderRadius:10}}>€{yestTotalSpend.toFixed(0)} költés</span>
-              <span style={{fontSize:11,background:"#73AF1C22",color:"#73AF1C",padding:"2px 10px",borderRadius:10}}>{yestTotalConv.toFixed(1)} konverzió</span>
-              {spendChg!==null&&<span style={{fontSize:11,background:spendChg>=0?"#73AF1C22":"#7f1d1d",color:spendChg>=0?"#73AF1C":"#f87171",padding:"2px 10px",borderRadius:10}}>{spendChg>=0?"▲ +":"▼ "}{spendChg}% vs tegnapelőtt</span>}
-            </div>
-          )}
-        </div>
-        <span style={{fontSize:14,color:"#8899bb",transform:open?"rotate(180deg)":"rotate(0deg)",display:"inline-block",transition:"transform 0.2s"}}>▼</span>
-      </div>
-
-      {open&&(
-        <div style={{padding:"0 18px 18px"}}>
-          {/* KPI összesítők */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-            {[
-              {label:"Látogatók (GA)", cur:yestUsers, prev:null, color:"#73AF1C"},
-              {label:"Google Ads költés (€)", cur:`€${yestTotalSpend.toFixed(2)}`, prev:`€${prev2Spend.toFixed(2)}`, chg:spendChg, color:"#FA8C05"},
-              {label:"Kattintások", cur:yestTotalClick, prev:prev2Click, chg:clickChg, color:"#08B7E4"},
-              {label:"Konverziók", cur:yestTotalConv.toFixed(1), prev:prev2Conv.toFixed(1), chg:convChg, color:"#34d399"},
-            ].map((k,i)=>(
-              <div key={i} style={{background:"#0d1520",border:"1px solid #2e3a50",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:"#8899bb",marginBottom:3}}>{k.label}</div>
-                <div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{typeof k.cur==="number"?k.cur.toLocaleString("hu"):k.cur}</div>
-                {k.prev&&<div style={{fontSize:10,color:"#4a5568",marginTop:2}}>Tegnapelőtt: {k.prev}</div>}
-                {k.chg!==null&&<div style={{fontSize:11,color:k.chg>=0?"#34d399":"#f87171",fontWeight:700,marginTop:2}}>{k.chg>=0?"▲ +":"▼ "}{Math.abs(k.chg)}%</div>}
-              </div>
-            ))}
-          </div>
-
-          {/* Kampány táblázat + elemzés */}
-          <div style={{display:"grid",gridTemplateColumns:"1.8fr 1fr",gap:12}}>
-            {/* Kampány táblázat */}
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:8}}>Kampányok tegnap</div>
-              {/* Fejléc */}
-              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"6px 8px",background:"#0d1520",borderRadius:"6px 6px 0 0",marginBottom:2}}>
-                {["Kampány","Költés €","Kattintás","CTR%","CPC €","Konv."].map((h,i)=>(
-                  <div key={i} style={{fontSize:10,color:"#4a5568",fontWeight:700,textAlign:i>0?"right":"left"}}>{h}</div>
-                ))}
-              </div>
-              {yestCamps.length===0&&<div style={{fontSize:12,color:"#4a5568",textAlign:"center",padding:20}}>Nincs tegnapi adat</div>}
-              {yestCamps.map((c,i)=>{
-                const prev = yest2Map[`${c.account}::${c.name}`];
-                const cChg = prev?chgPct(c.conversions,prev.conversions):null;
-                const sChg = prev?chgPct(c.spendEur,prev.spendEur):null;
-                return (
-                  <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr 1fr",gap:4,padding:"7px 8px",background:i%2===0?"#0d1520":"#111827",borderRadius:i===yestCamps.length-1?"0 0 6px 6px":0,alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:11,color:"#d8e4f8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.account==="furbify.hu"?"🇭🇺":"🇸🇰"} {c.name}</div>
-                    </div>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:11,color:"#fff",fontWeight:600}}>{c.spendEur.toFixed(2)}</div>
-                      {sChg!==null&&<div style={{fontSize:9,color:sChg>=0?"#34d399":"#f87171"}}>{sChg>=0?"▲":"▼"}{Math.abs(sChg)}%</div>}
-                    </div>
-                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.clicks.toLocaleString("hu")}</div>
-                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.ctr}%</div>
-                    <div style={{textAlign:"right",fontSize:11,color:"#8899bb"}}>{c.cpc}</div>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:11,color:c.conversions>0?"#34d399":"#4a5568",fontWeight:c.conversions>0?700:400}}>{c.conversions.toFixed(1)}</div>
-                      {cChg!==null&&c.conversions>0&&<div style={{fontSize:9,color:cChg>=0?"#34d399":"#f87171"}}>{cChg>=0?"▲":"▼"}{Math.abs(cChg)}%</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Elemzés */}
-            <div style={{background:"#0d1520",borderRadius:10,padding:"14px 16px"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#eef2fc",marginBottom:10}}>🔍 Tegnap elemzése</div>
-              {analysis.map((line,i)=>(
-                <div key={i} style={{fontSize:11.5,color:line.startsWith("📅")||line.startsWith("•")?"#8899bb":"#d8e4f8",lineHeight:1.7,paddingBottom:4,borderBottom:line.startsWith("📅")?"1px solid #1a2538":"none",marginBottom:line.startsWith("📅")?6:0,fontWeight:line.startsWith("🏆")||line.startsWith("📈")||line.startsWith("⚠️")?600:400}}>
-                  {line}
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* MARKET SUBTABS */}
+      {platform!=="ossz"&&(
+        <div style={{display:"flex",gap:8,padding:"10px 0",borderBottom:"1px solid #1a2538",marginBottom:14}}>
+          <SubTab id="sk" label="🇸🇰 furbify.sk"/>
+          <SubTab id="hu" label="🇭🇺 furbify.hu"/>
         </div>
       )}
+      {platform==="ossz"&&<div style={{marginBottom:14}}/>}
+
+      {/* KPI CARDS */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+        <AdsKPICard label="Elérés"      value={fmtN(summary.impressions)}     color={accentColor}/>
+        <AdsKPICard label="Kattintások" value={fmtN(summary.clicks)}           color={AC.green}/>
+        <AdsKPICard label="CTR"         value={pctN(summary.ctr)}              color={AC.purple}/>
+        <AdsKPICard label="Konverziók"  value={fmtN(summary.conversions)}      color={AC.amber}/>
+        <AdsKPICard label="Költés (€)"  value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
+      </div>
+
+      {/* TREND CHARTS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>Kattintás & CTR trend</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1a2538"/>
+              <XAxis dataKey="date" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <YAxis yAxisId="l" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <YAxis yAxisId="r" orientation="right" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <Tooltip content={<AdsTip/>}/>
+              <Legend wrapperStyle={{fontSize:11}}/>
+              <Line yAxisId="l" type="monotone" dataKey="clicks" name="Kattintás" stroke={accentColor} strokeWidth={2} dot={{r:2}}/>
+              <Line yAxisId="r" type="monotone" dataKey="ctr" name="CTR %" stroke={AC.purple} strokeWidth={1.5} dot={{r:2}} strokeDasharray="4 2"/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>Konverziók & ROAS trend</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1a2538"/>
+              <XAxis dataKey="date" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <YAxis yAxisId="l" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <YAxis yAxisId="r" orientation="right" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <Tooltip content={<AdsTip/>}/>
+              <Legend wrapperStyle={{fontSize:11}}/>
+              <Line yAxisId="l" type="monotone" dataKey="conversions" name="Konverzió" stroke={AC.green} strokeWidth={2} dot={{r:2}}/>
+              <Line yAxisId="r" type="monotone" dataKey="roas" name="ROAS" stroke={AC.amber} strokeWidth={1.5} dot={{r:2}} strokeDasharray="4 2"/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* RANKING + AI */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{fontSize:13,fontWeight:700,color:"#8899bb"}}>Kampány ranglista</span>
+            <div style={{display:"flex",gap:6}}>
+              <SortBtn id="roas"        label="ROAS"/>
+              <SortBtn id="clicks"      label="Kattintás"/>
+              <SortBtn id="conversions" label="Konverzió"/>
+            </div>
+          </div>
+          <AdsRankingTable campaigns={activeCamps} sortBy={sortBy} market={market}/>
+        </div>
+        <AdsAIInsights campaigns={activeCamps} platform={platform} market={market} period={period}/>
+      </div>
     </div>
   );
 }
 
-// ─── CAMPAIGN CALENDAR ─────────────────────────────────────────
 const MONTH_DAYS = [31,28,31,30,31,30,31,31,30,31,30,31];
 const CAL_COLORS = ["#73AF1C","#08B7E4","#FA8C05","#E45050","#a78bfa","#f97316","#34d399","#f59e0b","#ec4899","#60a5fa"];
 
