@@ -440,7 +440,19 @@ function parseCSV2(text) {
     return obj;
   }).filter(r=>Object.values(r).some(v=>v));
 }
-function parseNum2(s){if(!s)return 0;return parseFloat(s.replace(/\s/g,"").replace(",","."))||0;}
+function parseNum2(s){
+  if(!s) return 0;
+  // Remove quotes, spaces, then handle European decimal comma
+  let clean = String(s).replace(/['"]/g,"").replace(/\s/g,"");
+  // If format is like "3.059,12" (European thousand sep + decimal comma)
+  if(/\d{1,3}(\.\d{3})+,\d+/.test(clean)) {
+    clean = clean.replace(/\./g,"").replace(",",".");
+  } else {
+    // Simple comma decimal: "2,4006" → "2.4006"
+    clean = clean.replace(",",".");
+  }
+  return parseFloat(clean)||0;
+}
 async function fetchSheet2(sheetName){
   const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res=await fetch(url);
@@ -470,9 +482,10 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     // Campaign name – Google Ads or Meta Ads format
     const name = r["Campaign: Campaign name"] || r["Campaign name"] || r["campaign_name"] || r["Ad Set Name"] || "";
     if(!name) return;
-    // Account name
-    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || (platform==="meta"?`furbify.${market}`:"");
-    const isHuf = acc==="furbify.hu" || acc?.includes(".hu");
+    // Account name - explicit HUF only for furbify.hu (account ID 2291277780)
+    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || "";
+    const accId = r["Account: Account Id"] || r["Account Id"] || "";
+    const isHuf = acc==="furbify.hu" || accId==="2291277780";
     const date = r["Report: Date"] || r["Date"] || r["date"] || r["Day"] || "";
     const key=`${acc}::${name}`;
     if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
