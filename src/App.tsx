@@ -431,11 +431,9 @@ function parseNum2(s){
   return parseFloat(clean)||0;
 }
 async function fetchSheet2(sheetName){
-  // JSON formátum - nincs sor limit, megbízhatóbb mint CSV
   const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   const res=await fetch(url);
   if(!res.ok) throw new Error("Fetch failed: "+res.status);
-  // Google visszaad egy JS callback-et: /*O_o*/google.visualization.Query.setResponse({...})
   const text=await res.text();
   const json=JSON.parse(text.replace(/^[^{]+/,"").replace(/[^}]+$/,""));
   const cols=json.table.cols.map(c=>c.label||c.id);
@@ -443,7 +441,16 @@ async function fetchSheet2(sheetName){
     const obj={};
     cols.forEach((h,i)=>{
       const cell=row.c[i];
-      obj[h]=cell&&cell.v!=null?String(cell.v):"";
+      if(!cell||cell.v==null){obj[h]="";return;}
+      // Google Sheets JSON returns dates as "Date(yyyy,m,d)" where month is 0-indexed
+      const v=String(cell.v);
+      if(v.startsWith("Date(")){
+        const parts=v.replace("Date(","").replace(")","").split(",");
+        const y=parts[0]; const m=String(parseInt(parts[1])+1).padStart(2,"0"); const d=String(parseInt(parts[2])).padStart(2,"0");
+        obj[h]=`${y}-${m}-${d}`;
+      } else {
+        obj[h]=v;
+      }
     });
     return obj;
   }).filter(r=>Object.values(r).some(v=>v));
