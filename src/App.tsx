@@ -505,6 +505,7 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
       .map(d=>({...d,
         date:d.date.slice(5),
         cost:d.spendEur,
+        convValue:d.convValue||0,
         ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
       }));
     const totSpend=days.reduce((s,d)=>s+d.spendEur,0);
@@ -543,12 +544,20 @@ function buildChartData2(camps, days) {
   if(!camps.length) return [];
   const allDates=[...new Set(camps.flatMap(c=>c.days.map(d=>d.date)))].sort().slice(-days);
   return allDates.map(date=>{
-    let clicks=0,imp=0,conv=0,roasList=[];
+    let clicks=0,imp=0,conv=0,spend=0,convValue=0;
     camps.forEach(c=>{
       const d=c.days.find(x=>x.date===date);
-      if(d){clicks+=d.clicks;imp+=d.impressions;conv+=d.conversions;roasList.push(d.roas||0);}
+      if(d){
+        clicks+=d.clicks;
+        imp+=d.impressions;
+        conv+=d.conversions;
+        spend+=d.spendEur||0;
+        convValue+=d.convValue||0;
+      }
     });
-    return {date,clicks,ctr:imp>0?+((clicks/imp)*100).toFixed(2):0,conversions:conv,roas:roasList.length?+(roasList.reduce((a,b)=>a+b,0)/roasList.length).toFixed(2):0};
+    const roas = convValue>0&&spend>0 ? +(convValue/spend).toFixed(2) :
+                 conv>0&&spend>0 ? +(conv*50/spend).toFixed(2) : 0;
+    return {date, clicks, ctr:imp>0?+((clicks/imp)*100).toFixed(2):0, conversions:conv, roas};
   });
 }
 
