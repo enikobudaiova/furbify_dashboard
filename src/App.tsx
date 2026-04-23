@@ -438,61 +438,70 @@ async function fetchSheet2(sheetName){
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
-  const toEur=(val,isHuf)=>isHuf?val/eurHuf:val;
+  const toEur=(val,isHuf)=>isHuf?(val/eurHuf):val;
+
   const filtered = adsData.filter(r=>{
-    const acc = r["Account: Account name"] || "";
+    const acc=(r["Account: Account name"]||"").trim();
     if(!acc) return true;
     if(market==="hu") return acc==="furbify.hu";
     if(market==="sk") return acc==="furbify.sk";
-    return true; // "all"
+    return true;
   });
 
   const campDayMap={};
   filtered.forEach(r=>{
-    const name = r["Campaign: Campaign name"] || "";
+    const name=(r["Campaign: Campaign name"]||"").trim();
     if(!name) return;
-    const acc   = r["Account: Account name"] || "";
-    const accId = r["Account: Account Id"] || "";
-    const date  = r["Report: Date"] || "";
-    const spend = parseNum2(r["Cost: Amount spend"] || "0");
-    // HUF: furbify.hu (Google Ads) VAGY Meta HU fiók (spend értéke HUF-ban van)
-    const isHufFinal = acc==="furbify.hu" || accId==="2291277780" ||
-                       (platform==="meta" && market==="hu") ||
-                       (platform==="meta" && spend > 500);
-    const key=`${acc}::${name}`;
-    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf:isHufFinal,days:{},id:key,platform};
-    const d=date;
-    if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0};
-    const clicks = parseInt(r["Performance: Clicks"] || "0");
-    const impr   = parseInt(r["Performance: Impressions"] || "0");
-    const reach  = parseInt(r["Performance: Reach"] || "0");
-    const conv   = parseNum2(r["Conversions: Conversions"] || "0");
-    campDayMap[key].days[d].spendEur    += toEur(spend, isHufFinal);
-    campDayMap[key].days[d].clicks      += clicks;
-    campDayMap[key].days[d].impressions += impr;
-    campDayMap[key].days[d].reach       += reach;
-    campDayMap[key].days[d].conversions += conv;
+    const acc=(r["Account: Account name"]||"").trim();
+    const date=(r["Report: Date"]||"").trim();
+    const spendRaw=parseNum2(r["Cost: Amount spend"]||"0");
+
+    // HUF detekció:
+    // Google Ads furbify.hu → mindig HUF
+    // Meta HU market → mindig HUF
+    // Meta ossz ("all") → ha spend > 200 akkor HUF (Meta HU tipikusan 5000-50000 HUF/nap)
+    // Meta SK / Google SK → EUR
+    let isHuf = false;
+    if(platform==="google") {
+      isHuf = acc==="furbify.hu";
+    } else if(platform==="meta") {
+      if(market==="hu") isHuf = true;
+      else if(market==="all") isHuf = (acc==="furbify.hu" || spendRaw > 200);
+      else isHuf = false; // SK meta = EUR
+    }
+
+    const key=acc+"::"+name;
+    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
+    if(!campDayMap[key].days[date]) campDayMap[key].days[date]={date,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0};
+
+    campDayMap[key].days[date].spendEur    += toEur(spendRaw, isHuf);
+    campDayMap[key].days[date].clicks      += parseInt(r["Performance: Clicks"]||"0")||0;
+    campDayMap[key].days[date].impressions += parseInt(r["Performance: Impressions"]||"0")||0;
+    campDayMap[key].days[date].reach       += parseInt(r["Performance: Reach"]||"0")||0;
+    campDayMap[key].days[date].conversions += parseNum2(r["Conversions: Conversions"]||"0");
   });
 
   return Object.values(campDayMap).map(c=>{
-    const days=Object.values(c.days).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({
-      ...d, date:d.date.slice(5), cost:d.spendEur,
-      ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
-    }));
+    const days=Object.values(c.days)
+      .sort((a,b)=>a.date.localeCompare(b.date))
+      .map(d=>({...d,
+        date:d.date.slice(5),
+        cost:d.spendEur,
+        ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
+      }));
     const totSpend=days.reduce((s,d)=>s+d.spendEur,0);
     const totClicks=days.reduce((s,d)=>s+d.clicks,0);
     const totImpr=days.reduce((s,d)=>s+d.impressions,0);
     const totConv=days.reduce((s,d)=>s+d.conversions,0);
     const totCtr=totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
+    const roas=totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
     return {
       ...c, days, status:"active",
-      spendEur:totSpend, clicks:totClicks, impressions:totImpr, conversions:totConv,
-      ctr:totCtr,
-      // ROAS: use conversions if available, otherwise use CTR as proxy
-      roas:totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr,
-      cost:totSpend,
+      spendEur:totSpend, clicks:totClicks, impressions:totImpr,
+      conversions:totConv, ctr:totCtr, roas, cost:totSpend,
     };
-  }).sort((a,b)=>b.spendEur-a.spendEur);
+  }).filter(c=>c.spendEur>0||c.clicks>0)
+    .sort((a,b)=>b.spendEur-a.spendEur);
 }
 
 function filterByPeriod(camps, days) {
