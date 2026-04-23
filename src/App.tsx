@@ -440,11 +440,14 @@ async function fetchSheet2(sheetName){
 function buildCampaigns(adsData, platform, market, eurHuf) {
   const toEur=(val,isHuf)=>isHuf?(val/eurHuf):val;
 
+  const isHuAcc=(acc)=>{ const a=acc.trim().toUpperCase(); return a==="FURBIFY HU"||a==="FURBIFY.HU"||a.includes("FURBIFY HU"); };
+  const isSkAcc=(acc)=>{ const a=acc.trim().toUpperCase(); return a==="FURBIFY SK"||a==="FURBIFY.SK"||a.includes("FURBIFY SK"); };
+
   const filtered = adsData.filter(r=>{
     const acc=(r["Account: Account name"]||"").trim();
     if(!acc) return true;
-    if(market==="hu") return acc==="furbify.hu";
-    if(market==="sk") return acc==="furbify.sk";
+    if(market==="hu") return isHuAcc(acc);
+    if(market==="sk") return isSkAcc(acc);
     return true;
   });
 
@@ -456,18 +459,13 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const date=(r["Report: Date"]||"").trim();
     const spendRaw=parseNum2(r["Cost: Amount spend"]||"0");
 
-    // HUF detekció:
-    // Google Ads furbify.hu → mindig HUF
-    // Meta HU market → mindig HUF
-    // Meta ossz ("all") → ha spend > 200 akkor HUF (Meta HU tipikusan 5000-50000 HUF/nap)
-    // Meta SK / Google SK → EUR
     let isHuf = false;
     if(platform==="google") {
-      isHuf = acc==="furbify.hu";
+      isHuf = isHuAcc(acc);
     } else if(platform==="meta") {
       if(market==="hu") isHuf = true;
-      else if(market==="all") isHuf = (acc==="furbify.hu" || spendRaw > 200);
-      else isHuf = false; // SK meta = EUR
+      else if(market==="all") isHuf = (isHuAcc(acc) || spendRaw > 200);
+      else isHuf = false;
     }
 
     const key=acc+"::"+name;
