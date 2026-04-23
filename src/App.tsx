@@ -431,10 +431,22 @@ function parseNum2(s){
   return parseFloat(clean)||0;
 }
 async function fetchSheet2(sheetName){
-  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  // JSON formátum - nincs sor limit, megbízhatóbb mint CSV
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
   const res=await fetch(url);
-  if(!res.ok)throw new Error("Fetch failed: "+res.status);
-  return parseCSV2(await res.text());
+  if(!res.ok) throw new Error("Fetch failed: "+res.status);
+  // Google visszaad egy JS callback-et: /*O_o*/google.visualization.Query.setResponse({...})
+  const text=await res.text();
+  const json=JSON.parse(text.replace(/^[^{]+/,"").replace(/[^}]+$/,""));
+  const cols=json.table.cols.map(c=>c.label||c.id);
+  return (json.table.rows||[]).map(row=>{
+    const obj={};
+    cols.forEach((h,i)=>{
+      const cell=row.c[i];
+      obj[h]=cell&&cell.v!=null?String(cell.v):"";
+    });
+    return obj;
+  }).filter(r=>Object.values(r).some(v=>v));
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
