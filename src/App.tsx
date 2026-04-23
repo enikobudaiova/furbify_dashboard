@@ -457,13 +457,12 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const accId = r["Account: Account Id"] || "";
     const date  = r["Report: Date"] || "";
     const spend = parseNum2(r["Cost: Amount spend"] || "0");
-    // HUF detection: explicit account name OR account ID OR value is clearly HUF (>500 for a single day campaign spend)
-    const isHuf = acc==="furbify.hu" || accId==="2291277780" || (platform==="meta" && market==="hu") ? false :
-                  acc==="furbify.hu" || accId==="2291277780" || spend>500;
-    // For Meta HU: check if spend is in HUF range (>500 means HUF)
-    const isHufFinal = (platform==="google" && (acc==="furbify.hu" || accId==="2291277780")) ||
-                       (platform==="meta" && spend>200 && market==="hu") ||
-                       (platform!=="meta" && spend>500);
+    // HUF detection:
+    // - Google Ads: furbify.hu account (ID: 2291277780) → HUF
+    // - Meta HU: spend értéke mindig HUF (pl. 14226), konvertálni kell
+    const isHufFinal = (acc==="furbify.hu" || accId==="2291277780") ||
+                       (platform==="meta" && market==="hu") ||
+                       (platform==="meta" && spend > 500);
     const key=`${acc}::${name}`;
     if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf:isHufFinal,days:{},id:key,platform};
     const d=date;
