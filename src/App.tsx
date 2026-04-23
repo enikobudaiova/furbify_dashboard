@@ -294,27 +294,21 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
   const sorted = [...campaigns].sort((a,b)=>b[sortBy]-a[sortBy]);
   const max = sorted[0]?.[sortBy]||1;
   const barColor = sortBy==="roas"?AC.green:sortBy==="clicks"?AC.blue:AC.amber;
-  const prevMap = useMemo(()=>{
-    const m={};
-    campaigns.forEach(c=>{
-      const all=c.days||[]; const half=Math.floor(all.length/2);
-      const prev=all.slice(0,half); const curr=all.slice(half);
-      const prevVal=prev.reduce((s,d)=>s+(d[sortBy]||0),0)/(prev.length||1);
-      const currVal=curr.reduce((s,d)=>s+(d[sortBy]||0),0)/(curr.length||1);
-      m[c.id]=prevVal?+((currVal-prevVal)/prevVal*100).toFixed(1):0;
-    });
-    return m;
-  },[campaigns,sortBy]);
   const fmtVal=(c)=>{
-    if(sortBy==="roas") return `${fmtN(c.roas,1)}x`;
+    if(sortBy==="roas") return c.conversions>0?`${fmtN(c.roas,1)}x`:`${fmtN(c.ctr,2)}% CTR`;
     if(sortBy==="clicks") return fmtN(c.clicks);
-    return fmtN(c.conversions);
+    return fmtN(c.conversions,1);
   };
   return (
     <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,overflow:"hidden"}}>
       {sorted.map((c,i)=>{
         const pctBar=Math.round((c[sortBy]/max)*100);
-        const delta=prevMap[c.id]||0;
+        const half=Math.floor((c.days||[]).length/2);
+        const prev=(c.days||[]).slice(0,half);
+        const curr=(c.days||[]).slice(half);
+        const prevVal=prev.reduce((s,d)=>s+(d[sortBy]||0),0)/(prev.length||1);
+        const currVal=curr.reduce((s,d)=>s+(d[sortBy]||0),0)/(curr.length||1);
+        const delta=prevVal?+((currVal-prevVal)/prevVal*100).toFixed(1):0;
         return (
           <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderBottom:i<sorted.length-1?"1px solid #1a2538":"none"}}>
             <div style={{width:18,fontSize:12,color:"#8899bb",textAlign:"center",flexShrink:0,fontWeight:600}}>{i+1}</div>
@@ -446,39 +440,39 @@ async function fetchSheet2(sheetName){
 function buildCampaigns(adsData, platform, market, eurHuf) {
   const toEur=(val,isHuf)=>isHuf?val/eurHuf:val;
   const filtered = adsData.filter(r=>{
-    // Handle both Google Ads and Meta Ads account name columns
-    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || "";
-    // For Meta, try to detect HU/SK from account name or ad account name
-    const isHu = acc==="furbify.hu" || acc?.toLowerCase().includes("hu") || acc?.toLowerCase().includes("hungary");
-    const isSk = acc==="furbify.sk" || acc?.toLowerCase().includes("sk") || acc?.toLowerCase().includes("slovak");
-    // If no account info at all, include everything
-    const hasAccInfo = acc.length > 0;
-    if(!hasAccInfo) return true;
-    if(market==="hu") return isHu;
+    const acc = r["Account: Account name"] || "";
+    if(!acc) return true;
+    const isHu = acc==="furbify.hu" || acc?.toLowerCase().includes("furbify.hu") || acc?.toLowerCase().includes("hungary") || acc?.toLowerCase().includes("magyarország");
+    const isSk = acc==="furbify.sk" || acc?.toLowerCase().includes("furbify.sk") || acc?.toLowerCase().includes("slovak") || acc?.toLowerCase().includes("slovensko");
+    if(market==="hu") return isHu || (!isSk && acc.length>0);
     if(market==="sk") return isSk;
-    return true; // "all"
+    return true;
   });
 
-  // Group by date+campaign – handles both Google Ads and Meta Ads column formats
   const campDayMap={};
   filtered.forEach(r=>{
     const name = r["Campaign: Campaign name"] || "";
     if(!name) return;
-    const acc = r["Account: Account name"] || "";
+    const acc   = r["Account: Account name"] || "";
     const accId = r["Account: Account Id"] || "";
-    // Explicit HUF: only furbify.hu (Google Ads account ID 2291277780)
-    const isHuf = acc==="furbify.hu" || accId==="2291277780";
-    const date = r["Report: Date"] || "";
+    const date  = r["Report: Date"] || "";
+    const spend = parseNum2(r["Cost: Amount spend"] || "0");
+    // HUF detection: explicit account name OR account ID OR value is clearly HUF (>500 for a single day campaign spend)
+    const isHuf = acc==="furbify.hu" || accId==="2291277780" || (platform==="meta" && market==="hu") ? false :
+                  acc==="furbify.hu" || accId==="2291277780" || spend>500;
+    // For Meta HU: check if spend is in HUF range (>500 means HUF)
+    const isHufFinal = (platform==="google" && (acc==="furbify.hu" || accId==="2291277780")) ||
+                       (platform==="meta" && spend>200 && market==="hu") ||
+                       (platform!=="meta" && spend>500);
     const key=`${acc}::${name}`;
-    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
+    if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf:isHufFinal,days:{},id:key,platform};
     const d=date;
     if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0};
-    const spend = parseNum2(r["Cost: Amount spend"] || "0");
     const clicks = parseInt(r["Performance: Clicks"] || "0");
-    const impr = parseInt(r["Performance: Impressions"] || "0");
-    const reach = parseInt(r["Performance: Reach"] || "0");
-    const conv = parseNum2(r["Conversions: Conversions"] || "0");
-    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);
+    const impr   = parseInt(r["Performance: Impressions"] || "0");
+    const reach  = parseInt(r["Performance: Reach"] || "0");
+    const conv   = parseNum2(r["Conversions: Conversions"] || "0");
+    campDayMap[key].days[d].spendEur    += toEur(spend, isHufFinal);
     campDayMap[key].days[d].clicks      += clicks;
     campDayMap[key].days[d].impressions += impr;
     campDayMap[key].days[d].reach       += reach;
@@ -489,17 +483,18 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const days=Object.values(c.days).sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({
       ...d, date:d.date.slice(5), cost:d.spendEur,
       ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
-      roas:d.spendEur>0?+(d.conversions*50/d.spendEur).toFixed(2):0,
     }));
     const totSpend=days.reduce((s,d)=>s+d.spendEur,0);
     const totClicks=days.reduce((s,d)=>s+d.clicks,0);
     const totImpr=days.reduce((s,d)=>s+d.impressions,0);
     const totConv=days.reduce((s,d)=>s+d.conversions,0);
+    const totCtr=totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
     return {
       ...c, days, status:"active",
       spendEur:totSpend, clicks:totClicks, impressions:totImpr, conversions:totConv,
-      ctr:totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0,
-      roas:totSpend>0?+(totConv*50/totSpend).toFixed(2):0,
+      ctr:totCtr,
+      // ROAS: use conversions if available, otherwise use CTR as proxy
+      roas:totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr,
       cost:totSpend,
     };
   }).sort((a,b)=>b.spendEur-a.spendEur);
@@ -597,7 +592,25 @@ function PerformanceDashboard() {
     return validate(buildCampaigns(adsData, platform, mkt, eurHuf));
   },[adsData,metaData,platform,market,eurHuf]);
 
-  const activeCamps = useMemo(()=>filterByPeriod(allCamps,periodDays),[allCamps,periodDays]);
+  const activeCamps = useMemo(()=>{
+    if(period==="egyéni"&&customStart&&customEnd){
+      // Filter by exact date range
+      const startStr = customStart.slice(5); // MM-DD format
+      const endStr   = customEnd.slice(5);
+      return allCamps.map(c=>({
+        ...c,
+        days: c.days.filter(d=>d.date>=startStr&&d.date<=endStr),
+        spendEur: c.days.filter(d=>d.date>=startStr&&d.date<=endStr).reduce((s,d)=>s+d.spendEur,0),
+        clicks:   c.days.filter(d=>d.date>=startStr&&d.date<=endStr).reduce((s,d)=>s+d.clicks,0),
+        impressions: c.days.filter(d=>d.date>=startStr&&d.date<=endStr).reduce((s,d)=>s+d.impressions,0),
+        conversions: c.days.filter(d=>d.date>=startStr&&d.date<=endStr).reduce((s,d)=>s+d.conversions,0),
+        cost: c.days.filter(d=>d.date>=startStr&&d.date<=endStr).reduce((s,d)=>s+d.spendEur,0),
+        ctr:(()=>{const sl=c.days.filter(d=>d.date>=startStr&&d.date<=endStr);const imp=sl.reduce((s,d)=>s+d.impressions,0);const cl=sl.reduce((s,d)=>s+d.clicks,0);return imp>0?+((cl/imp)*100).toFixed(2):0;})(),
+        roas:(()=>{const sl=c.days.filter(d=>d.date>=startStr&&d.date<=endStr);const sp=sl.reduce((s,d)=>s+d.spendEur,0);const cv=sl.reduce((s,d)=>s+d.conversions,0);return cv>0&&sp>0?+(cv*50/sp).toFixed(2):sl.reduce((s,d)=>s+d.ctr,0)/(sl.length||1);})(),
+      }));
+    }
+    return filterByPeriod(allCamps,periodDays);
+  },[allCamps,periodDays,period,customStart,customEnd]);
 
   const summary = useMemo(()=>{
     const imp=activeCamps.reduce((s,c)=>s+c.impressions,0);
