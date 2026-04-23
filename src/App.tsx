@@ -662,10 +662,19 @@ function PerformanceDashboard() {
   if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
   if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
+  // DEBUG PANEL – töröld ki ha minden rendben van
+  const debugPanel = (
+    <div style={{background:"#1a1a2e",border:"1px solid #f59e0b",borderRadius:8,padding:12,marginBottom:16,fontSize:11,color:"#f59e0b"}}>
+      <b>DEBUG:</b> Google Ads sorok: {adsData.length} | Meta sorok: {metaData.length} |
+      Platform: {platform} | Market: {market} | Period: {period} ({periodDays} nap) |
+      allCamps: {allCamps.length} | activeCamps: {activeCamps.length} |
+      {adsData.length>0 && <span> | Első sor acc: "{adsData[0]["Account: Account name"]}" | Első dátum: "{adsData[0]["Report: Date"]}"</span>}
+    </div>
+  );
+
   return (
     <div style={{fontFamily:"inherit"}}>
-
-      {/* TOPBAR */}
+      {debugPanel}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
         <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
