@@ -442,11 +442,9 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
   const filtered = adsData.filter(r=>{
     const acc = r["Account: Account name"] || "";
     if(!acc) return true;
-    const isHu = acc==="furbify.hu" || acc?.toLowerCase().includes("furbify.hu") || acc?.toLowerCase().includes("hungary") || acc?.toLowerCase().includes("magyarország");
-    const isSk = acc==="furbify.sk" || acc?.toLowerCase().includes("furbify.sk") || acc?.toLowerCase().includes("slovak") || acc?.toLowerCase().includes("slovensko");
-    if(market==="hu") return isHu || (!isSk && acc.length>0);
-    if(market==="sk") return isSk;
-    return true;
+    if(market==="hu") return acc==="furbify.hu";
+    if(market==="sk") return acc==="furbify.sk";
+    return true; // "all"
   });
 
   const campDayMap={};
@@ -457,10 +455,8 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const accId = r["Account: Account Id"] || "";
     const date  = r["Report: Date"] || "";
     const spend = parseNum2(r["Cost: Amount spend"] || "0");
-    // HUF detection:
-    // - Google Ads: furbify.hu account (ID: 2291277780) → HUF
-    // - Meta HU: spend értéke mindig HUF (pl. 14226), konvertálni kell
-    const isHufFinal = (acc==="furbify.hu" || accId==="2291277780") ||
+    // HUF: furbify.hu (Google Ads) VAGY Meta HU fiók (spend értéke HUF-ban van)
+    const isHufFinal = acc==="furbify.hu" || accId==="2291277780" ||
                        (platform==="meta" && market==="hu") ||
                        (platform==="meta" && spend > 500);
     const key=`${acc}::${name}`;
@@ -574,21 +570,23 @@ function PerformanceDashboard() {
   // Build all campaigns from Sheets data
   const allCamps = useMemo(()=>{
     const mkt = platform==="ossz"?"all":market;
-    // Sanity check: cap unrealistic spend values (max 3000 EUR/day/campaign)
-    const validate = camps => camps.map(c=>({
-      ...c,
-      days: c.days.map(d=>({
-        ...d,
-        spendEur: d.spendEur > 3000 ? 0 : d.spendEur  // flag clearly wrong values
-      }))
-    }));
-    if(platform==="meta") return validate(buildCampaigns(metaData, platform, mkt, eurHuf));
+    // Recompute campaign totals from days (ensures consistency)
+    const recompute = camps => camps.map(c=>{
+      const totSpend = c.days.reduce((s,d)=>s+d.spendEur,0);
+      const totClicks = c.days.reduce((s,d)=>s+d.clicks,0);
+      const totImpr = c.days.reduce((s,d)=>s+d.impressions,0);
+      const totConv = c.days.reduce((s,d)=>s+d.conversions,0);
+      const totCtr = totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
+      const roas = totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
+      return {...c, spendEur:totSpend, clicks:totClicks, impressions:totImpr, conversions:totConv, ctr:totCtr, roas, cost:totSpend};
+    });
+    if(platform==="meta") return recompute(buildCampaigns(metaData, "meta", mkt, eurHuf));
     if(platform==="ossz") {
-      const g = validate(buildCampaigns(adsData, "google", "all", eurHuf));
-      const m = validate(buildCampaigns(metaData, "meta", "all", eurHuf));
+      const g = recompute(buildCampaigns(adsData, "google", "all", eurHuf));
+      const m = recompute(buildCampaigns(metaData, "meta", "all", eurHuf));
       return [...g, ...m];
     }
-    return validate(buildCampaigns(adsData, platform, mkt, eurHuf));
+    return recompute(buildCampaigns(adsData, "google", mkt, eurHuf));
   },[adsData,metaData,platform,market,eurHuf]);
 
   const activeCamps = useMemo(()=>{
