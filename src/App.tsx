@@ -503,7 +503,6 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const days=Object.values(c.days)
       .sort((a,b)=>a.date.localeCompare(b.date))
       .map(d=>({...d,
-        date:d.date.slice(5),
         cost:d.spendEur,
         convValue:d.convValue||0,
         ctr:d.impressions>0?+((d.clicks/d.impressions)*100).toFixed(2):0,
@@ -529,7 +528,7 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
 function filterByPeriod(camps, days) {
   const today = new Date();
   const cutoff = new Date(today.getTime() - days * 86400000);
-  const cutoffStr = cutoff.toISOString().slice(5,10); // MM-DD format
+  const cutoffStr = cutoff.toISOString().slice(0,10); // YYYY-MM-DD
 
   return camps.map(c=>{
     const filtered = c.days.filter(d=>d.date >= cutoffStr);
@@ -549,22 +548,23 @@ function filterByPeriod(camps, days) {
 
 function buildChartData2(camps, days) {
   if(!camps.length) return [];
-  const allDates=[...new Set(camps.flatMap(c=>c.days.map(d=>d.date)))].sort().slice(-days);
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - days * 86400000);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const allDates=[...new Set(camps.flatMap(c=>c.days.map(d=>d.date)))].filter(d=>d>=cutoffStr).sort();
   return allDates.map(date=>{
     let clicks=0,imp=0,conv=0,spend=0,convValue=0;
     camps.forEach(c=>{
       const d=c.days.find(x=>x.date===date);
       if(d){
-        clicks+=d.clicks;
-        imp+=d.impressions;
-        conv+=d.conversions;
-        spend+=d.spendEur||0;
-        convValue+=d.convValue||0;
+        clicks+=d.clicks; imp+=d.impressions; conv+=d.conversions;
+        spend+=d.spendEur||0; convValue+=d.convValue||0;
       }
     });
-    const roas = convValue>0&&spend>0 ? +(convValue/spend).toFixed(2) :
-                 conv>0&&spend>0 ? +(conv*50/spend).toFixed(2) : 0;
-    return {date, clicks, ctr:imp>0?+((clicks/imp)*100).toFixed(2):0, conversions:conv, roas};
+    const roas = convValue>0&&spend>0?+(convValue/spend).toFixed(2):
+                 conv>0&&spend>0?+(conv*50/spend).toFixed(2):0;
+    // Display date as MM-DD for chart labels
+    return {date:date.slice(5), clicks, ctr:imp>0?+((clicks/imp)*100).toFixed(2):0, conversions:conv, roas};
   });
 }
 
