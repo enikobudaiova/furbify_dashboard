@@ -462,31 +462,26 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
   // Group by date+campaign – handles both Google Ads and Meta Ads column formats
   const campDayMap={};
   filtered.forEach(r=>{
-    // Campaign name – Google Ads or Meta Ads format
-    const name = r["Campaign: Campaign name"] || r["Campaign name"] || r["campaign_name"] || r["Ad Set Name"] || "";
+    const name = r["Campaign: Campaign name"] || "";
     if(!name) return;
-    // Account name - explicit HUF only for furbify.hu (account ID 2291277780)
-    const acc = r["Account: Account name"] || r["Account name"] || r["account_name"] || "";
-    const accId = r["Account: Account Id"] || r["Account Id"] || "";
+    const acc = r["Account: Account name"] || "";
+    const accId = r["Account: Account Id"] || "";
+    // Explicit HUF: only furbify.hu (Google Ads account ID 2291277780)
     const isHuf = acc==="furbify.hu" || accId==="2291277780";
-    const date = r["Report: Date"] || r["Date"] || r["date"] || r["Day"] || "";
+    const date = r["Report: Date"] || "";
     const key=`${acc}::${name}`;
     if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
     const d=date;
-    if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,conversions:0};
-    // Spend – Google Ads or Meta Ads
-    const spendRaw = parseNum2(r["Cost: Amount spend"] || r["Amount spent"] || r["spend"] || r["Spend"] || "0");
-    // Auto-detect HUF: explicit account match OR value > 100 (no EUR campaign spends >100 in SK)
-    const isHufFinal = isHuf || (spendRaw > 500 && !isHuf===false);
-    const spend = spendRaw;
-    // Clicks
-    const clicks = parseInt(r["Performance: Clicks"] || r["Link clicks"] || r["clicks"] || r["Clicks"] || "0");
-    // Impressions
-    const impr = parseInt(r["Performance: Impressions"] || r["Impressions"] || r["impressions"] || "0");
-    // Conversions
-    const conv = parseNum2(r["Conversions: Conversions"] || r["Purchases"] || r["conversions"] || r["Results"] || r["Leads"] || "0");
-    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);    campDayMap[key].days[d].clicks      += clicks;
+    if(!campDayMap[key].days[d]) campDayMap[key].days[d]={date:d,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0};
+    const spend = parseNum2(r["Cost: Amount spend"] || "0");
+    const clicks = parseInt(r["Performance: Clicks"] || "0");
+    const impr = parseInt(r["Performance: Impressions"] || "0");
+    const reach = parseInt(r["Performance: Reach"] || "0");
+    const conv = parseNum2(r["Conversions: Conversions"] || "0");
+    campDayMap[key].days[d].spendEur    += toEur(spend, isHuf);
+    campDayMap[key].days[d].clicks      += clicks;
     campDayMap[key].days[d].impressions += impr;
+    campDayMap[key].days[d].reach       += reach;
     campDayMap[key].days[d].conversions += conv;
   });
 
@@ -595,9 +590,9 @@ function PerformanceDashboard() {
     }));
     if(platform==="meta") return validate(buildCampaigns(metaData, platform, mkt, eurHuf));
     if(platform==="ossz") {
-      // Only Google Ads in összesített for now - Meta columns need verification
       const g = validate(buildCampaigns(adsData, "google", "all", eurHuf));
-      return g;
+      const m = validate(buildCampaigns(metaData, "meta", "all", eurHuf));
+      return [...g, ...m];
     }
     return validate(buildCampaigns(adsData, platform, mkt, eurHuf));
   },[adsData,metaData,platform,market,eurHuf]);
