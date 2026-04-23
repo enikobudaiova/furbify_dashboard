@@ -329,6 +329,80 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
 }
 
 // ─── AI INSIGHTS ──────────────────────────────────────────────
+// ─── KAMPÁNY SZINTŰ GRAFIKON ───────────────────────────────────
+function CampaignChart({ campaigns }) {
+  const [selCamp, setSelCamp] = useState("");
+  const [metric, setMetric] = useState("clicks");
+
+  const camp = campaigns.find(c=>c.id===selCamp) || campaigns[0];
+
+  const chartData = camp ? camp.days.map(d=>({
+    date: d.date,
+    clicks: d.clicks||0,
+    conversions: +(d.conversions||0).toFixed(2),
+    roas: d.spendEur>0&&d.convValue>0?+(d.convValue/d.spendEur).toFixed(2):0,
+    spend: +(d.spendEur||0).toFixed(2),
+  })) : [];
+
+  const metricConfig = {
+    clicks:      {label:"Kattintások", color:"#08B7E4", fmt:v=>v},
+    conversions: {label:"Konverziók",  color:"#f59e0b", fmt:v=>v},
+    roas:        {label:"ROAS",        color:"#34d399", fmt:v=>v+"x"},
+    spend:       {label:"Költés (€)",  color:"#E45050", fmt:v=>"€"+v},
+  };
+
+  const cfg = metricConfig[metric];
+
+  return (
+    <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:16,marginBottom:14}}>
+      <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>📊 Kampány szintű elemzés</div>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <select value={selCamp} onChange={e=>setSelCamp(e.target.value)}
+          style={{flex:1,minWidth:200,background:"#0d1520",border:"1px solid #2e3a50",color:"#eef2fc",
+            fontSize:12,padding:"6px 10px",borderRadius:6,outline:"none"}}>
+          {campaigns.map(c=>(
+            <option key={c.id} value={c.id}>{c.name.slice(0,45)}</option>
+          ))}
+        </select>
+        <div style={{display:"flex",gap:4}}>
+          {Object.entries(metricConfig).map(([k,v])=>(
+            <div key={k} onClick={()=>setMetric(k)}
+              style={{padding:"5px 12px",borderRadius:6,fontSize:12,cursor:"pointer",
+                border:`1px solid ${metric===k?v.color:"#2e3a50"}`,
+                background:metric===k?v.color+"22":"transparent",
+                color:metric===k?v.color:"#8899bb"}}>
+              {v.label}
+            </div>
+          ))}
+        </div>
+      </div>
+      {chartData.length>0?(
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={chartData} margin={{top:5,right:10,left:0,bottom:0}}>
+            <defs>
+              <linearGradient id="campGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={cfg.color} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={cfg.color} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1a2538"/>
+            <XAxis dataKey="date" tick={{fill:"#4a5568",fontSize:10}} tickLine={false}/>
+            <YAxis tick={{fill:"#4a5568",fontSize:10}} tickLine={false} axisLine={false}
+              tickFormatter={cfg.fmt}/>
+            <Tooltip contentStyle={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:8,fontSize:11}}
+              formatter={(v)=>[cfg.fmt(v), cfg.label]}
+              labelStyle={{color:"#8899bb"}}/>
+            <Area type="monotone" dataKey={metric} stroke={cfg.color} strokeWidth={2}
+              fill="url(#campGrad)" dot={false}/>
+          </AreaChart>
+        </ResponsiveContainer>
+      ):(
+        <div style={{textAlign:"center",padding:40,color:"#4a5568",fontSize:12}}>Nincs elegendő adat</div>
+      )}
+    </div>
+  );
+}
+
 function AdsAIInsights({ campaigns, platform, market, period }) {
   const [insight,setInsight] = useState(null);
 
@@ -659,11 +733,12 @@ function PerformanceDashboard() {
 
   const summary = useMemo(()=>{
     const imp=activeCamps.reduce((s,c)=>s+c.impressions,0);
+    const reach=activeCamps.reduce((s,c)=>s+(c.days?.reduce((r,d)=>r+(d.reach||0),0)||0),0);
     const cl=activeCamps.reduce((s,c)=>s+c.clicks,0);
     const sp=activeCamps.reduce((s,c)=>s+c.spendEur,0);
     const cv=activeCamps.reduce((s,c)=>s+c.conversions,0);
     const roas=activeCamps.length?+(activeCamps.reduce((s,c)=>s+c.roas,0)/activeCamps.length).toFixed(2):0;
-    return {impressions:imp,clicks:cl,spendEur:sp,conversions:cv,ctr:imp?+((cl/imp)*100).toFixed(2):0,roas};
+    return {impressions:imp,reach:reach||imp,clicks:cl,spendEur:sp,conversions:cv,ctr:imp?+((cl/imp)*100).toFixed(2):0,roas};
   },[activeCamps]);
 
   const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
@@ -797,11 +872,11 @@ function PerformanceDashboard() {
 
       {/* KPI CARDS */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-        <AdsKPICard label="Elérés"      value={fmtN(summary.impressions)}     color={accentColor}/>
-        <AdsKPICard label="Kattintások" value={fmtN(summary.clicks)}           color={AC.green}/>
-        <AdsKPICard label="CTR"         value={pctN(summary.ctr)}              color={AC.purple}/>
-        <AdsKPICard label="Konverziók"  value={fmtN(summary.conversions)}      color={AC.amber}/>
-        <AdsKPICard label="Költés (€)"  value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
+        <AdsKPICard label={platform==="meta"?"Elérés (Reach)":"Impressions"} value={platform==="meta"?fmtN(summary.reach):fmtN(summary.impressions)} color={accentColor}/>
+        <AdsKPICard label="Kattintások"  value={fmtN(summary.clicks)}           color={AC.green}/>
+        <AdsKPICard label="CTR"          value={pctN(summary.ctr)}              color={AC.purple}/>
+        <AdsKPICard label="Konverziók"   value={fmtN(summary.conversions)}      color={AC.amber}/>
+        <AdsKPICard label="Költés (€)"   value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
       </div>
 
       {/* TREND CHARTS */}
@@ -851,6 +926,7 @@ function PerformanceDashboard() {
           </div>
           <AdsRankingTable campaigns={activeCamps} sortBy={sortBy} market={market}/>
         </div>
+        <CampaignChart campaigns={activeCamps}/>
         <AdsAIInsights campaigns={activeCamps} platform={platform} market={market} period={period}/>
       </div>
     </div>
