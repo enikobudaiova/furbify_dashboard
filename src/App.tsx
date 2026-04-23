@@ -459,8 +459,10 @@ async function fetchSheet2(sheetName){
 function buildCampaigns(adsData, platform, market, eurHuf) {
   const toEur=(val,isHuf)=>isHuf?(val/eurHuf):val;
 
-  const isHuAcc=(acc)=>{ const a=acc.trim().toUpperCase(); return a.includes("FURBIFY HU"); };
-  const isSkAcc=(acc)=>{ const a=acc.trim().toUpperCase(); return a.includes("FURBIFY SK"); };
+  // Google Ads: "furbify.hu" / "furbify.sk"
+  // Meta: "FURBIFY HU s.r.o." / "FURBIFY SK"
+  const isHuAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.hu"||a.includes("furbify hu")||a.includes("furbify.hu"); };
+  const isSkAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.sk"||a.includes("furbify sk")||a.includes("furbify.sk"); };
 
   const filtered = adsData.filter(r=>{
     const acc=(r["Account: Account name"]||"").trim();
@@ -699,8 +701,35 @@ function PerformanceDashboard() {
   if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
   if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
+  // DEBUG – konzolba írja az adatokat
+  const accGroups = {};
+  adsData.forEach(r=>{
+    const acc=r["Account: Account name"]||"?";
+    const spend=parseFloat(r["Cost: Amount spend"]||0);
+    if(!accGroups[acc]) accGroups[acc]={count:0,totalSpend:0};
+    accGroups[acc].count++;
+    accGroups[acc].totalSpend+=spend;
+  });
+  console.log("=== FURBIFY DEBUG ===");
+  console.log("Google Ads fiókok:", JSON.stringify(accGroups));
+  console.log("Meta sorok:", metaData.length);
+  console.log("platform:", platform, "market:", market, "eurHuf:", eurHuf);
+  console.log("allCamps:", allCamps.length, "activeCamps:", activeCamps.length);
+  if(activeCamps[0]) console.log("Első kampány:", activeCamps[0].name, "spend:", activeCamps[0].spendEur, "isHuf:", activeCamps[0].isHuf);
+
+  const debugPanel=(
+    <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:12,marginBottom:16,fontSize:11,color:"#f59e0b",lineHeight:2,zIndex:9999,position:"relative"}}>
+      <b>🔍 DEBUG:</b> Google Ads sorok: {adsData.length} | Meta: {metaData.length} | Platform: {platform} | Market: {market} | EUR/HUF: {eurHuf}<br/>
+      {Object.entries(accGroups).map(([acc,v])=>(
+        <span key={acc}>"{acc}": {v.count} sor, összköltés nyers: {v.totalSpend.toFixed(2)}<br/></span>
+      ))}
+      activeCamps: {activeCamps.length} | Összköltés: {activeCamps.reduce((s,c)=>s+c.spendEur,0).toFixed(2)}€
+    </div>
+  );
+
   return (
-    <div style={{fontFamily:"inherit"}}>
+    <div>
+      {debugPanel}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
         <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
