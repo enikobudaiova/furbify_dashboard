@@ -489,13 +489,14 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
 
     const key=acc+"::"+name;
     if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
-    if(!campDayMap[key].days[date]) campDayMap[key].days[date]={date,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0};
+    if(!campDayMap[key].days[date]) campDayMap[key].days[date]={date,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0,convValue:0};
 
     campDayMap[key].days[date].spendEur    += toEur(spendRaw, isHuf);
     campDayMap[key].days[date].clicks      += parseInt(r["Performance: Clicks"]||"0")||0;
     campDayMap[key].days[date].impressions += parseInt(r["Performance: Impressions"]||"0")||0;
     campDayMap[key].days[date].reach       += parseInt(r["Performance: Reach"]||"0")||0;
     campDayMap[key].days[date].conversions += parseNum2(r["Conversions: Conversions"]||"0");
+    campDayMap[key].days[date].convValue   += toEur(parseNum2(r["Conversions: Value"]||"0"), isHuf);
   });
 
   return Object.values(campDayMap).map(c=>{
@@ -510,12 +511,15 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     const totClicks=days.reduce((s,d)=>s+d.clicks,0);
     const totImpr=days.reduce((s,d)=>s+d.impressions,0);
     const totConv=days.reduce((s,d)=>s+d.conversions,0);
+    const totConvValue=days.reduce((s,d)=>s+(d.convValue||0),0);
     const totCtr=totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
-    const roas=totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
+    // ROAS = konverzió érték / költés (valós adat ha van, egyébként CTR)
+    const roas=totConvValue>0&&totSpend>0?+(totConvValue/totSpend).toFixed(2):
+               totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
     return {
       ...c, days, status:"active",
       spendEur:totSpend, clicks:totClicks, impressions:totImpr,
-      conversions:totConv, ctr:totCtr, roas, cost:totSpend,
+      conversions:totConv, convValue:totConvValue, ctr:totCtr, roas, cost:totSpend,
     };
   }).filter(c=>c.spendEur>0||c.clicks>0)
     .sort((a,b)=>b.spendEur-a.spendEur);
