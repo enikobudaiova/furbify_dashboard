@@ -527,17 +527,24 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
 }
 
 function filterByPeriod(camps, days) {
-  return camps.map(c=>({
-    ...c,
-    days: c.days.slice(-days),
-    spendEur: c.days.slice(-days).reduce((s,d)=>s+d.spendEur,0),
-    clicks:   c.days.slice(-days).reduce((s,d)=>s+d.clicks,0),
-    impressions: c.days.slice(-days).reduce((s,d)=>s+d.impressions,0),
-    conversions: c.days.slice(-days).reduce((s,d)=>s+d.conversions,0),
-    cost: c.days.slice(-days).reduce((s,d)=>s+d.spendEur,0),
-    ctr: (()=>{const sl=c.days.slice(-days);const imp=sl.reduce((s,d)=>s+d.impressions,0);const cl=sl.reduce((s,d)=>s+d.clicks,0);return imp>0?+((cl/imp)*100).toFixed(2):0;})(),
-    roas: (()=>{const sl=c.days.slice(-days);const sp=sl.reduce((s,d)=>s+d.spendEur,0);const cv=sl.reduce((s,d)=>s+d.conversions,0);return sp>0?+(cv*50/sp).toFixed(2):0;})(),
-  }));
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - days * 86400000);
+  const cutoffStr = cutoff.toISOString().slice(5,10); // MM-DD format
+
+  return camps.map(c=>{
+    const filtered = c.days.filter(d=>d.date >= cutoffStr);
+    const totSpend = filtered.reduce((s,d)=>s+d.spendEur,0);
+    const totClicks = filtered.reduce((s,d)=>s+d.clicks,0);
+    const totImpr = filtered.reduce((s,d)=>s+d.impressions,0);
+    const totConv = filtered.reduce((s,d)=>s+d.conversions,0);
+    const totConvValue = filtered.reduce((s,d)=>s+(d.convValue||0),0);
+    const totCtr = totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
+    const roas = totConvValue>0&&totSpend>0?+(totConvValue/totSpend).toFixed(2):
+                 totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
+    return {...c, days:filtered, spendEur:totSpend, clicks:totClicks,
+      impressions:totImpr, conversions:totConv, convValue:totConvValue,
+      ctr:totCtr, roas, cost:totSpend};
+  }).filter(c=>c.days.length>0);
 }
 
 function buildChartData2(camps, days) {
