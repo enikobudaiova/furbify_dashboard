@@ -291,9 +291,11 @@ const AdsTip = ({ active, payload, label }) => {
 
 // ─── RANKING TABLE ────────────────────────────────────────────
 function AdsRankingTable({ campaigns, sortBy, market }) {
+  const [showAll, setShowAll] = useState(false);
   const sorted = [...campaigns].sort((a,b)=>b[sortBy]-a[sortBy]);
   const max = sorted[0]?.[sortBy]||1;
   const barColor = sortBy==="roas"?AC.green:sortBy==="clicks"?AC.blue:AC.amber;
+  const visible = showAll ? sorted : sorted.slice(0,10);
   const fmtVal=(c)=>{
     if(sortBy==="roas") return c.conversions>0?`${fmtN(c.roas,1)}x`:`${fmtN(c.ctr,2)}% CTR`;
     if(sortBy==="clicks") return fmtN(c.clicks);
@@ -301,7 +303,7 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
   };
   return (
     <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,overflow:"hidden"}}>
-      {sorted.map((c,i)=>{
+      {visible.map((c,i)=>{
         const pctBar=Math.round((c[sortBy]/max)*100);
         const half=Math.floor((c.days||[]).length/2);
         const prev=(c.days||[]).slice(0,half);
@@ -310,7 +312,7 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
         const currVal=curr.reduce((s,d)=>s+(d[sortBy]||0),0)/(curr.length||1);
         const delta=prevVal?+((currVal-prevVal)/prevVal*100).toFixed(1):0;
         return (
-          <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderBottom:i<sorted.length-1?"1px solid #1a2538":"none"}}>
+          <div key={c.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderBottom:i<visible.length-1?"1px solid #1a2538":"none"}}>
             <div style={{width:18,fontSize:12,color:"#8899bb",textAlign:"center",flexShrink:0,fontWeight:600}}>{i+1}</div>
             <div style={{flex:1,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:"#d8e4f8"}}>{c.name}</div>
             <div style={{width:80,flexShrink:0}}>
@@ -324,6 +326,13 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
         );
       })}
       {sorted.length===0&&<div style={{padding:20,textAlign:"center",fontSize:12,color:"#4a5568"}}>Nincs adat</div>}
+      {sorted.length>10&&(
+        <div onClick={()=>setShowAll(s=>!s)}
+          style={{padding:"10px",textAlign:"center",fontSize:12,color:"#8899bb",cursor:"pointer",
+            borderTop:"1px solid #1a2538",background:"#131d2e"}}>
+          {showAll?`▲ Kevesebb mutatása`:`▼ Még ${sorted.length-10} kampány megjelenítése`}
+        </div>
+      )}
     </div>
   );
 }
@@ -736,12 +745,16 @@ function PerformanceDashboard() {
 
   const summary = useMemo(()=>{
     const imp=activeCamps.reduce((s,c)=>s+c.impressions,0);
+    // Reach: only from days where reach data exists (Meta), fallback to impressions
     const reach=activeCamps.reduce((s,c)=>s+(c.days?.reduce((r,d)=>r+(d.reach||0),0)||0),0);
     const cl=activeCamps.reduce((s,c)=>s+c.clicks,0);
     const sp=activeCamps.reduce((s,c)=>s+c.spendEur,0);
     const cv=activeCamps.reduce((s,c)=>s+c.conversions,0);
-    const roas=activeCamps.length?+(activeCamps.reduce((s,c)=>s+c.roas,0)/activeCamps.length).toFixed(2):0;
-    return {impressions:imp,reach:reach||imp,clicks:cl,spendEur:sp,conversions:cv,ctr:imp?+((cl/imp)*100).toFixed(2):0,roas};
+    const cvVal=activeCamps.reduce((s,c)=>s+(c.convValue||0),0);
+    // ROAS: use total convValue / total spend (not average of campaign ROAS)
+    const roas=cvVal>0&&sp>0?+(cvVal/sp).toFixed(2):cv>0&&sp>0?+(cv*50/sp).toFixed(2):0;
+    return {impressions:imp, reach, clicks:cl, spendEur:sp, conversions:cv, convValue:cvVal,
+      ctr:imp?+((cl/imp)*100).toFixed(2):0, roas};
   },[activeCamps]);
 
   const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
