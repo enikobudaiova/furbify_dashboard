@@ -294,11 +294,12 @@ function AdsRankingTable({ campaigns, sortBy, market }) {
   const [showAll, setShowAll] = useState(false);
   const sorted = [...campaigns].sort((a,b)=>b[sortBy]-a[sortBy]);
   const max = sorted[0]?.[sortBy]||1;
-  const barColor = sortBy==="roas"?AC.green:sortBy==="clicks"?AC.blue:AC.amber;
+  const barColor = sortBy==="roas"?AC.green:sortBy==="clicks"?AC.blue:sortBy==="spendEur"?AC.teal:AC.amber;
   const visible = showAll ? sorted : sorted.slice(0,10);
   const fmtVal=(c)=>{
     if(sortBy==="roas") return c.conversions>0?`${fmtN(c.roas,1)}x`:`${fmtN(c.ctr,2)}% CTR`;
     if(sortBy==="clicks") return fmtN(c.clicks);
+    if(sortBy==="spendEur") return `€${fmtN(c.spendEur,0)}`;
     return fmtN(c.conversions,1);
   };
   return (
@@ -870,8 +871,8 @@ function PerformanceDashboard() {
       {/* KPI CARDS */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
         <AdsKPICard
-          label={platform==="meta"?"Elérés (Reach)":platform==="ossz"?"Impr. + Reach":"Impressions"}
-          value={platform==="meta"?fmtN(summary.reach):platform==="ossz"?fmtN(summary.reach):fmtN(summary.impressions)}
+          label="Impressions"
+          value={fmtN(summary.impressions)}
           color={accentColor}/>
         <AdsKPICard label="Kattintások"  value={fmtN(summary.clicks)}           color={AC.green}/>
         <AdsKPICard label="CTR"          value={pctN(summary.ctr)}              color={AC.purple}/>
@@ -922,6 +923,7 @@ function PerformanceDashboard() {
               <SortBtn id="roas"        label="ROAS"/>
               <SortBtn id="clicks"      label="Kattintás"/>
               <SortBtn id="conversions" label="Konverzió"/>
+              <SortBtn id="spendEur"    label="Költés"/>
             </div>
           </div>
           <AdsRankingTable campaigns={activeCamps} sortBy={sortBy} market={market}/>
