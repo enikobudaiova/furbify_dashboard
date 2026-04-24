@@ -709,9 +709,12 @@ function PerformanceDashboard() {
       const totClicks = c.days.reduce((s,d)=>s+d.clicks,0);
       const totImpr = c.days.reduce((s,d)=>s+d.impressions,0);
       const totConv = c.days.reduce((s,d)=>s+d.conversions,0);
+      const totConvValue = c.days.reduce((s,d)=>s+(d.convValue||0),0);
       const totCtr = totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
-      const roas = totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
-      return {...c, spendEur:totSpend, clicks:totClicks, impressions:totImpr, conversions:totConv, ctr:totCtr, roas, cost:totSpend};
+      const roas = totConvValue>0&&totSpend>0?+(totConvValue/totSpend).toFixed(2):
+                   totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
+      return {...c, spendEur:totSpend, clicks:totClicks, impressions:totImpr,
+        conversions:totConv, convValue:totConvValue, ctr:totCtr, roas, cost:totSpend};
     });
     if(platform==="meta") return recompute(buildCampaigns(metaData, "meta", mkt, eurHuf));
     if(platform==="ossz") {
