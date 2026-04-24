@@ -515,7 +515,9 @@ function parseNum2(s){
   return parseFloat(clean)||0;
 }
 async function fetchSheet2(sheetName){
-  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  // Cache-busting: minden híváshoz egyedi timestamp
+  const cacheBust = Date.now();
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
   const res=await fetch(url);
   if(!res.ok) throw new Error("Fetch failed: "+res.status);
   const text=await res.text();
