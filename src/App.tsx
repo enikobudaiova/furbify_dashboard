@@ -744,17 +744,24 @@ function PerformanceDashboard() {
   },[allCamps,periodDays,period,customStart,customEnd]);
 
   const summary = useMemo(()=>{
-    const imp=activeCamps.reduce((s,c)=>s+c.impressions,0);
-    // Reach: only from days where reach data exists (Meta), fallback to impressions
-    const reach=activeCamps.reduce((s,c)=>s+(c.days?.reduce((r,d)=>r+(d.reach||0),0)||0),0);
-    const cl=activeCamps.reduce((s,c)=>s+c.clicks,0);
-    const sp=activeCamps.reduce((s,c)=>s+c.spendEur,0);
-    const cv=activeCamps.reduce((s,c)=>s+c.conversions,0);
-    const cvVal=activeCamps.reduce((s,c)=>s+(c.convValue||0),0);
-    // ROAS: use total convValue / total spend (not average of campaign ROAS)
-    const roas=cvVal>0&&sp>0?+(cvVal/sp).toFixed(2):cv>0&&sp>0?+(cv*50/sp).toFixed(2):0;
-    return {impressions:imp, reach, clicks:cl, spendEur:sp, conversions:cv, convValue:cvVal,
-      ctr:imp?+((cl/imp)*100).toFixed(2):0, roas};
+    const googleCamps = activeCamps.filter(c=>c.platform==="google");
+    const metaCamps   = activeCamps.filter(c=>c.platform==="meta");
+    const othCamps    = activeCamps.filter(c=>c.platform!=="google"&&c.platform!=="meta");
+
+    // Google → Impressions, Meta → Reach, egyéb → Impressions
+    const displayReach =
+      googleCamps.reduce((s,c)=>s+c.impressions,0) +
+      metaCamps.reduce((s,c)=>s+(c.days?.reduce((r,d)=>r+(d.reach||0),0)||0),0) +
+      othCamps.reduce((s,c)=>s+c.impressions,0);
+
+    const imp = activeCamps.reduce((s,c)=>s+c.impressions,0);
+    const cl  = activeCamps.reduce((s,c)=>s+c.clicks,0);
+    const sp  = activeCamps.reduce((s,c)=>s+c.spendEur,0);
+    const cv  = activeCamps.reduce((s,c)=>s+c.conversions,0);
+    const cvVal = activeCamps.reduce((s,c)=>s+(c.convValue||0),0);
+    const roas = cvVal>0&&sp>0?+(cvVal/sp).toFixed(2):cv>0&&sp>0?+(cv*50/sp).toFixed(2):0;
+    return {impressions:imp, reach:displayReach, clicks:cl, spendEur:sp,
+      conversions:cv, convValue:cvVal, ctr:imp?+((cl/imp)*100).toFixed(2):0, roas};
   },[activeCamps]);
 
   const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
@@ -862,7 +869,10 @@ function PerformanceDashboard() {
 
       {/* KPI CARDS */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-        <AdsKPICard label={platform==="meta"?"Elérés (Reach)":"Impressions"} value={platform==="meta"?fmtN(summary.reach):fmtN(summary.impressions)} color={accentColor}/>
+        <AdsKPICard
+          label={platform==="meta"?"Elérés (Reach)":platform==="ossz"?"Impr. + Reach":"Impressions"}
+          value={platform==="meta"?fmtN(summary.reach):platform==="ossz"?fmtN(summary.reach):fmtN(summary.impressions)}
+          color={accentColor}/>
         <AdsKPICard label="Kattintások"  value={fmtN(summary.clicks)}           color={AC.green}/>
         <AdsKPICard label="CTR"          value={pctN(summary.ctr)}              color={AC.purple}/>
         <AdsKPICard label="Konverziók"   value={fmtN(summary.conversions)}      color={AC.amber}/>
