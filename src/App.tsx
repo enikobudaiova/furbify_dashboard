@@ -803,9 +803,19 @@ function PerformanceDashboard() {
   if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
   if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
+  // DEBUG
+  const skRows = adsData.filter(r=>(r["Account: Account name"]||"").toLowerCase().includes("furbify.sk"));
+  const debugPanel = (
+    <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:"#f59e0b"}}>
+      DEBUG: platform={platform} market={market} | Google Ads sorok: {adsData.length} | SK sorok: {skRows.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}
+      {skRows[0]&&<span> | SK minta acc="{skRows[0]["Account: Account name"]}" date="{skRows[0]["Report: Date"]}"</span>}
+    </div>
+  );
+
   // Ads Dashboard render
   return (
     <div>
+      {debugPanel}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
         <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
