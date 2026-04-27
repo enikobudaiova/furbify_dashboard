@@ -805,9 +805,24 @@ function PerformanceDashboard() {
   if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
   if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
+  // DEBUG
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - periodDays * 86400000);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const apr26rows = adsData.filter(r=>r["Report: Date"]==="2026-04-26"&&(r["Account: Account name"]||"").includes("furbify.hu"));
+  const debugPanel = (
+    <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:"#f59e0b",lineHeight:1.8}}>
+      DEBUG: platform={platform} market={market} | period={period} ({periodDays}nap) | cutoff={cutoffStr}<br/>
+      Google Ads sorok: {adsData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
+      ápr.26 HU sorok: {apr26rows.length} | összköltés nyers: {apr26rows.reduce((s,r)=>s+parseFloat(r["Cost: Amount spend"]||0),0).toFixed(2)}<br/>
+      activeCamps összköltés: {activeCamps.reduce((s,c)=>s+c.spendEur,0).toFixed(2)}€
+    </div>
+  );
+
   // Ads Dashboard render
   return (
     <div>
+      {debugPanel}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
         <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
