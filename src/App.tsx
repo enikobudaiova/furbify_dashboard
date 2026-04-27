@@ -514,41 +514,15 @@ function parseNum2(s){
   }
   return parseFloat(clean)||0;
 }
+const WEBAPP_URL = "https://script.google.com/a/macros/furbify.eu/s/AKfycbxaDTKdRiu-KoeQBtTP_S0CXqUgUao0l1j8xl1VlkTYP7lXhm3hlT00Qhee0C12Ug2IEw/exec";
+
 async function fetchSheet2(sheetName){
   const cacheBust = Date.now();
-  const baseUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
-  
-  // Első lap lekérése hogy megtudjuk a fejléceket
-  const res = await fetch(baseUrl);
+  const url = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
+  const res = await fetch(url);
   if(!res.ok) throw new Error("Fetch failed: "+res.status);
-  const text = await res.text();
-  const firstBatch = parseCSV2(text);
-  
-  // Ha kevesebb mint 150 sor, valószínűleg mindent megkaptunk
-  if(firstBatch.length < 150) return firstBatch;
-  
-  // Lapozással lekérjük az összes sort
-  const allRows = [...firstBatch];
-  let offset = firstBatch.length + 1; // +1 a fejléc miatt
-  
-  while(true) {
-    const pageUrl = `${baseUrl}&range=A${offset+1}:Z${offset+500}`;
-    try {
-      const pageRes = await fetch(pageUrl);
-      if(!pageRes.ok) break;
-      const pageText = await pageRes.text();
-      if(!pageText.trim()) break;
-      // CSV lapozásnál nincs fejléc – hozzáadjuk a fejlécet
-      const headers = Object.keys(firstBatch[0]).join(",");
-      const pageBatch = parseCSV2(headers + "\n" + pageText);
-      if(!pageBatch.length) break;
-      allRows.push(...pageBatch);
-      if(pageBatch.length < 490) break; // Utolsó lap
-      offset += pageBatch.length;
-    } catch(e) { break; }
-  }
-  
-  return allRows;
+  const data = await res.json();
+  return data.filter(r=>Object.values(r).some(v=>v!==null&&v!==""));
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
