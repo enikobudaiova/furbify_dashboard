@@ -514,7 +514,7 @@ function parseNum2(s){
   }
   return parseFloat(clean)||0;
 }
-const WEBAPP_URL = "https://script.google.com/a/macros/furbify.eu/s/AKfycbxaDTKdRiu-KoeQBtTP_S0CXqUgUao0l1j8xl1VlkTYP7lXhm3hlT00Qhee0C12Ug2IEw/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxaDTKdRiu-KoeQBtTP_S0CXqUgUao0l1j8xl1VlkTYP7lXhm3hlT00Qhee0C12Ug2IEw/exec";
 
 async function fetchSheet2(sheetName){
   const cacheBust = Date.now();
