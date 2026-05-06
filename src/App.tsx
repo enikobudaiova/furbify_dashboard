@@ -814,6 +814,7 @@ function PerformanceDashboard() {
       Google Ads sorok: {adsData.length} | Meta sorok: {metaData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
       activeCamps összköltés: {activeCamps.reduce((s,c)=>s+c.spendEur,0).toFixed(2)}€
       {metaData[0]&&<span> | Meta első acc: "{metaData[0]["Account: Account name"]}" date: "{metaData[0]["Report: Date"]}"</span>}
+      {allCamps[0]&&<span><br/>Első camp: "{allCamps[0].name}" days: {allCamps[0].days?.length} | első nap: {allCamps[0].days?.[0]?.date} | utolsó nap: {allCamps[0].days?.[allCamps[0].days.length-1]?.date}</span>}
     </div>
   );
 
