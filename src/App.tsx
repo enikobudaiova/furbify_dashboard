@@ -515,29 +515,27 @@ function parseNum2(s){
   const n = parseFloat(clean);
   return isNaN(n)?0:n;
 }
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyLROue6egLsaOXBgGcO1UJUBr8eA2OAx2vfXe9-VoO2TAEYG7N4rDDhW0fYK-1c6NYHA/exec";
+const SHEET_ID = "16XXkKGGvWvqEV4KxC2SahWYqNUgS6cN48vUE8DhFxlM";
+
+async function fetchCSV(sheetName){
+  const cacheBust = Date.now();
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("Fetch failed: "+res.status);
+  const text = await res.text();
+  return parseCSV2(text);
+}
 
 async function fetchSheet2(sheetName){
-  return new Promise((resolve, reject)=>{
-    const callbackName = "cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
-    const script = document.createElement("script");
-    const timeout = setTimeout(()=>{
-      cleanup();
-      reject(new Error("Timeout: "+sheetName));
-    }, 30000);
-    function cleanup(){
-      clearTimeout(timeout);
-      delete window[callbackName];
-      if(script.parentNode) script.parentNode.removeChild(script);
-    }
-    window[callbackName] = function(data){
-      cleanup();
-      resolve(data.filter(r=>Object.values(r).some(v=>v!==null&&v!=="")));
-    };
-    script.src = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&callback=${callbackName}&cb=${Date.now()}`;
-    script.onerror = ()=>{ cleanup(); reject(new Error("Script load error")); };
-    document.head.appendChild(script);
-  });
+  if(sheetName === "Google Ads") {
+    // Két külön fülből olvas és egyesíti
+    const [hu, sk] = await Promise.all([
+      fetchCSV("Google Ads HU"),
+      fetchCSV("Google Ads SK"),
+    ]);
+    return [...hu, ...sk];
+  }
+  return fetchCSV(sheetName);
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
