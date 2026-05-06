@@ -909,28 +909,34 @@ function PerformanceDashboard() {
       </div>
 
       {/* GA4 LÁTOGATÓK – csak összesített nézeten */}
-      {platform==="ossz" && ga4Summary && (
-        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14,marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🌐 Webshop látogatók – aktuális hónap (összes domain)</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
-              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Látogatók eddig</div>
-              <div style={{fontSize:28,fontWeight:800,color:"#eef2fc"}}>{ga4Summary.totalVisitors.toLocaleString("hu")}</div>
-              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>{ga4Summary.dayOfMonth} napból</div>
-            </div>
-            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
-              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Napi átlag</div>
-              <div style={{fontSize:28,fontWeight:800,color:"#08B7E4"}}>{ga4Summary.dailyAvg.toLocaleString("hu")}</div>
-              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>látogató/nap</div>
-            </div>
-            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
-              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Várható hó végéig</div>
-              <div style={{fontSize:28,fontWeight:800,color:"#34d399"}}>{ga4Summary.estimated.toLocaleString("hu")}</div>
-              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>{ga4Summary.daysInMonth} napos hónapra</div>
+      {platform==="ossz" && ga4Data.length>0 && (()=>{
+        const today = new Date();
+        const yesterday = new Date(today.getTime()-86400000).toISOString().slice(0,10);
+        const domains = ["furbify.hu","furbify.sk","furbify.cz","furbify.eu"];
+        const yesterdayRows = ga4Data.filter(r=>r["Date"]===yesterday);
+        const totalYesterday = yesterdayRows.reduce((s,r)=>s+parseInt(r["Total Users"]||0),0);
+        return (
+          <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14,marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🌐 Tegnapi webshop látogatók – {yesterday}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+              {domains.map(domain=>{
+                const row = yesterdayRows.find(r=>r["Property"]===domain);
+                const val = row ? parseInt(row["Total Users"]||0) : 0;
+                return (
+                  <div key={domain} style={{background:"#0d1520",borderRadius:10,padding:12,textAlign:"center"}}>
+                    <div style={{fontSize:10,color:"#8899bb",marginBottom:6}}>{domain}</div>
+                    <div style={{fontSize:22,fontWeight:800,color:"#eef2fc"}}>{val.toLocaleString("hu")}</div>
+                  </div>
+                );
+              })}
+              <div style={{background:"#1e3a1a",borderRadius:10,padding:12,textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#34d399",marginBottom:6}}>Összesen</div>
+                <div style={{fontSize:22,fontWeight:800,color:"#34d399"}}>{totalYesterday.toLocaleString("hu")}</div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TREND CHARTS */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
@@ -1580,11 +1586,21 @@ export default function Dashboard() {
               </div>
             </div>
             {dailyVals.length>1&&(
-              <div style={{borderTop:"1px solid #1e2535",paddingTop:12,display:"flex",alignItems:"center",gap:16}}>
+              <div style={{borderTop:"1px solid #1e2535",paddingTop:12,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
                 <div><div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>Napi trend ({dailyVals.length} nap)</div><Sparkline vals={dailyVals} color={ph.accent}/></div>
                 <div><div style={{fontSize:10,color:"#8899bb"}}>Napi átlag</div><div style={{fontSize:18,fontWeight:800,color:"#fff"}}>{Math.round(dailySum/dailyVals.length).toLocaleString("hu")}</div></div>
                 <div><div style={{fontSize:10,color:"#8899bb"}}>Napi összeg</div><div style={{fontSize:18,fontWeight:800,color:ph.accent}}>{dailySum.toLocaleString("hu")}</div></div>
                 {todayVal!=null&&<div><div style={{fontSize:10,color:"#8899bb"}}>Ma</div><div style={{fontSize:18,fontWeight:800,color:"#fbbf24"}}>{todayVal.toLocaleString("hu")}</div></div>}
+                {(()=>{
+                  // Hó végi becslés: napi átlag × hónap napjainak száma
+                  const daysInMonth = new Date(2026, m.month, 0).getDate();
+                  const dailyAvgVal = Math.round(dailySum/dailyVals.length);
+                  const estimated = dailyAvgVal * daysInMonth;
+                  return <div style={{background:"#1e3a2a",borderRadius:8,padding:"6px 12px"}}>
+                    <div style={{fontSize:10,color:"#34d399"}}>Várható hó végéig</div>
+                    <div style={{fontSize:18,fontWeight:800,color:"#34d399"}}>{estimated.toLocaleString("hu")}</div>
+                  </div>;
+                })()}
               </div>
             )}
           </div>
