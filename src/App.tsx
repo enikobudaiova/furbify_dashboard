@@ -813,9 +813,9 @@ function PerformanceDashboard() {
     <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:"#f59e0b",lineHeight:1.8}}>
       DEBUG: platform={platform} market={market} | period={period} ({periodDays}nap) | cutoff={cutoffStr}<br/>
       Google Ads sorok: {adsData.length} | Meta sorok: {metaData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
-      activeCamps összköltés: {activeCamps.reduce((s,c)=>s+c.spendEur,0).toFixed(2)}€
+      activeCamps összköltés: {activeCamps.reduce((s,c)=>s+Number(c.spendEur||0),0).toFixed(2)}€
       {metaData[0]&&<span> | Meta első acc: "{metaData[0]["Account: Account name"]}" date: "{metaData[0]["Report: Date"]}"</span>}
-      {allCamps[0]&&<span><br/>Első camp: "{allCamps[0].name}" days: {allCamps[0].days?.length} | első nap: {allCamps[0].days?.[0]?.date} | utolsó nap: {allCamps[0].days?.[allCamps[0].days.length-1]?.date}</span>}
+      {activeCamps[0]&&<span><br/>activeCamps[0]: "{activeCamps[0].name}" days: {activeCamps[0].days?.length} | spendEur: {Number(activeCamps[0].spendEur).toFixed(2)} | első nap: {activeCamps[0].days?.[0]?.date} | utolsó: {activeCamps[0].days?.[activeCamps[0].days.length-1]?.date}</span>}
     </div>
   );
 
