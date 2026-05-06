@@ -502,17 +502,18 @@ function parseCSV2(text) {
   }).filter(r=>Object.values(r).some(v=>v));
 }
 function parseNum2(s){
-  if(!s) return 0;
-  // Remove quotes, spaces, then handle European decimal comma
-  let clean = String(s).replace(/['"]/g,"").replace(/\s/g,"");
-  // If format is like "3.059,12" (European thousand sep + decimal comma)
-  if(/\d{1,3}(\.\d{3})+,\d+/.test(clean)) {
+  if(s===null||s===undefined||s==="") return 0;
+  // Remove quotes, spaces
+  let clean = String(s).replace(/['"]/g,"").trim();
+  // Handle European format: "3.059,12" → "3059.12"
+  if(/^\d{1,3}(\.\d{3})+,\d+$/.test(clean)){
     clean = clean.replace(/\./g,"").replace(",",".");
   } else {
     // Simple comma decimal: "2,4006" → "2.4006"
     clean = clean.replace(",",".");
   }
-  return parseFloat(clean)||0;
+  const n = parseFloat(clean);
+  return isNaN(n)?0:n;
 }
 const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz-0dCoL0YBURVluIZgNqQ8I6aWlzKe9bUYoKzTUad6mloQEmSsNLnLJS4JZbq7_EzWjA/exec";
 
@@ -576,13 +577,12 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     if(!campDayMap[key]) campDayMap[key]={name,account:acc,isHuf,days:{},id:key,platform};
     if(!campDayMap[key].days[date]) campDayMap[key].days[date]={date,spendEur:0,clicks:0,impressions:0,reach:0,conversions:0,convValue:0};
 
-    campDayMap[key].days[date].spendEur    += toEur(spendRaw, isHuf);
-    campDayMap[key].days[date].clicks      += parseInt(r["Performance: Clicks"]||"0")||0;
-    campDayMap[key].days[date].impressions += parseInt(r["Performance: Impressions"]||"0")||0;
-    campDayMap[key].days[date].reach       += parseInt(r["Performance: Reach"]||"0")||0;
-    campDayMap[key].days[date].conversions += parseNum2(r["Conversions: Conversions"]||r["Conversions: Purchases"]||"0");
-    // convValue is also in HUF for HU account – must convert to EUR!
-    campDayMap[key].days[date].convValue   += toEur(parseNum2(r["Conversions: Value"]||"0"), isHuf);
+    campDayMap[key].days[date].spendEur    = +(campDayMap[key].days[date].spendEur) + toEur(spendRaw, isHuf);
+    campDayMap[key].days[date].clicks      = +(campDayMap[key].days[date].clicks) + (parseInt(r["Performance: Clicks"]||"0")||0);
+    campDayMap[key].days[date].impressions = +(campDayMap[key].days[date].impressions) + (parseInt(r["Performance: Impressions"]||"0")||0);
+    campDayMap[key].days[date].reach       = +(campDayMap[key].days[date].reach) + (parseInt(r["Performance: Reach"]||"0")||0);
+    campDayMap[key].days[date].conversions = +(campDayMap[key].days[date].conversions) + parseNum2(r["Conversions: Conversions"]||r["Conversions: Purchases"]||"0");
+    campDayMap[key].days[date].convValue   = +(campDayMap[key].days[date].convValue) + toEur(parseNum2(r["Conversions: Value"]||"0"), isHuf);
   });
 
   return Object.values(campDayMap).map(c=>{
