@@ -908,8 +908,8 @@ function PerformanceDashboard() {
         <AdsKPICard label="Költés (€)"   value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
       </div>
 
-      {/* GA4 LÁTOGATÓK – csak összesített nézeten */}
-      {platform==="ossz" && ga4Data.length>0 && (()=>{
+      {/* GA4 LÁTOGATÓK – csak összesített nézeten, csak Tegnap periódusban */}
+      {platform==="ossz" && period==="Tegnap" && ga4Data.length>0 && (()=>{
         const today = new Date();
         const yesterday = new Date(today.getTime()-86400000).toISOString().slice(0,10);
         const domains = ["furbify.hu","furbify.sk","furbify.cz","furbify.eu"];
