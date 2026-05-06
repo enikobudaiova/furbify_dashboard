@@ -514,7 +514,7 @@ function parseNum2(s){
   }
   return parseFloat(clean)||0;
 }
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxmZWLYmNLGwpg4buVkvagNxdfEdCjFTX-LH624bCYoY6FVGa09M5uIG9e-sh6WDG-f1w/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzC32i911DGgCJzHFlb3xUNdkwwVDqVSXZZiqvRiYRwNLQ1ZbmHpLLlediv8PaZvG1Asw/exec";
 
 async function fetchSheet2(sheetName){
   const cacheBust = Date.now();
