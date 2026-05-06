@@ -515,7 +515,6 @@ function parseNum2(s){
   const n = parseFloat(clean);
   return isNaN(n)?0:n;
 }
-const SHEET_ID = "16XXkKGGvWvqEV4KxC2SahWYqNUgS6cN48vUE8DhFxlM";
 
 async function fetchCSV(sheetName){
   const cacheBust = Date.now();
