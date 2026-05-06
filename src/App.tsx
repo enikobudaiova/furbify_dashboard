@@ -614,22 +614,23 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
 function filterByPeriod(camps, days) {
   const today = new Date();
   const cutoff = new Date(today.getTime() - days * 86400000);
-  const cutoffStr = cutoff.toISOString().slice(0,10); // YYYY-MM-DD
+  const cutoffStr = cutoff.toISOString().slice(0,10);
 
   return camps.map(c=>{
     const filtered = c.days.filter(d=>d.date >= cutoffStr);
-    const totSpend = filtered.reduce((s,d)=>s+d.spendEur,0);
-    const totClicks = filtered.reduce((s,d)=>s+d.clicks,0);
-    const totImpr = filtered.reduce((s,d)=>s+d.impressions,0);
-    const totConv = filtered.reduce((s,d)=>s+d.conversions,0);
-    const totConvValue = filtered.reduce((s,d)=>s+(d.convValue||0),0);
+    if(!filtered.length) return null;
+    const totSpend    = filtered.reduce((s,d)=>s+Number(d.spendEur||0),0);
+    const totClicks   = filtered.reduce((s,d)=>s+Number(d.clicks||0),0);
+    const totImpr     = filtered.reduce((s,d)=>s+Number(d.impressions||0),0);
+    const totConv     = filtered.reduce((s,d)=>s+Number(d.conversions||0),0);
+    const totConvValue= filtered.reduce((s,d)=>s+Number(d.convValue||0),0);
     const totCtr = totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
     const roas = totConvValue>0&&totSpend>0?+(totConvValue/totSpend).toFixed(2):
                  totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
     return {...c, days:filtered, spendEur:totSpend, clicks:totClicks,
       impressions:totImpr, conversions:totConv, convValue:totConvValue,
       ctr:totCtr, roas, cost:totSpend};
-  }).filter(c=>c.days.length>0);
+  }).filter(Boolean);
 }
 
 function buildChartData2(camps, days) {
@@ -705,11 +706,11 @@ function PerformanceDashboard() {
     const mkt = platform==="ossz"?"all":market;
     // Recompute campaign totals from days (ensures consistency)
     const recompute = camps => camps.map(c=>{
-      const totSpend = c.days.reduce((s,d)=>s+d.spendEur,0);
-      const totClicks = c.days.reduce((s,d)=>s+d.clicks,0);
-      const totImpr = c.days.reduce((s,d)=>s+d.impressions,0);
-      const totConv = c.days.reduce((s,d)=>s+d.conversions,0);
-      const totConvValue = c.days.reduce((s,d)=>s+(d.convValue||0),0);
+      const totSpend     = c.days.reduce((s,d)=>s+Number(d.spendEur||0),0);
+      const totClicks    = c.days.reduce((s,d)=>s+Number(d.clicks||0),0);
+      const totImpr      = c.days.reduce((s,d)=>s+Number(d.impressions||0),0);
+      const totConv      = c.days.reduce((s,d)=>s+Number(d.conversions||0),0);
+      const totConvValue = c.days.reduce((s,d)=>s+Number(d.convValue||0),0);
       const totCtr = totImpr>0?+((totClicks/totImpr)*100).toFixed(2):0;
       const roas = totConvValue>0&&totSpend>0?+(totConvValue/totSpend).toFixed(2):
                    totConv>0&&totSpend>0?+(totConv*50/totSpend).toFixed(2):totCtr;
