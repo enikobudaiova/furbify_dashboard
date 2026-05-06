@@ -514,30 +514,29 @@ function parseNum2(s){
   }
   return parseFloat(clean)||0;
 }
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzC32i911DGgCJzHFlb3xUNdkwwVDqVSXZZiqvRiYRwNLQ1ZbmHpLLlediv8PaZvG1Asw/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz-0dCoL0YBURVluIZgNqQ8I6aWlzKe9bUYoKzTUad6mloQEmSsNLnLJS4JZbq7_EzWjA/exec";
 
 async function fetchSheet2(sheetName){
-  const cacheBust = Date.now();
-  const url = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
-  const res = await fetch(url, {redirect:"follow", mode:"cors"});
-  if(!res.ok) throw new Error("Fetch failed: "+res.status);
-  const data = await res.json();
-  // Fix date format: "Tue May 05 2026 00:00:00 GMT+0200..." → "2026-05-05"
-  return data.map(r=>{
-    const d = r["Report: Date"]||"";
-    if(d && !d.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      try {
-        const parsed = new Date(d);
-        if(!isNaN(parsed)) {
-          const y = parsed.getFullYear();
-          const m = String(parsed.getMonth()+1).padStart(2,"0");
-          const day = String(parsed.getDate()).padStart(2,"0");
-          r["Report: Date"] = `${y}-${m}-${day}`;
-        }
-      } catch(e) {}
+  return new Promise((resolve, reject)=>{
+    const callbackName = "cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+    const script = document.createElement("script");
+    const timeout = setTimeout(()=>{
+      cleanup();
+      reject(new Error("Timeout: "+sheetName));
+    }, 30000);
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[callbackName];
+      if(script.parentNode) script.parentNode.removeChild(script);
     }
-    return r;
-  }).filter(r=>Object.values(r).some(v=>v!==null&&v!==""));
+    window[callbackName] = function(data){
+      cleanup();
+      resolve(data.filter(r=>Object.values(r).some(v=>v!==null&&v!=="")));
+    };
+    script.src = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&callback=${callbackName}&cb=${Date.now()}`;
+    script.onerror = ()=>{ cleanup(); reject(new Error("Script load error")); };
+    document.head.appendChild(script);
+  });
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
