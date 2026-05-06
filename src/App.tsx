@@ -676,10 +676,11 @@ function PerformanceDashboard() {
     try {
       const [ads, meta] = await Promise.all([
         fetchSheet2("Google Ads"),
-        fetchSheet2("Meta Ads").catch(()=>[]),
+        fetchSheet2("Meta Ads").catch((e)=>{ console.warn("Meta betöltés hiba:", e.message); return []; }),
       ]);
       setAdsData(ads);
       setMetaData(meta);
+      console.log("Google Ads sorok:", ads.length, "Meta sorok:", meta.length);
       setLastUpdate(new Date().toLocaleTimeString("hu"));
       try {
         const fx=await fetch("https://open.er-api.com/v6/latest/EUR");
@@ -810,9 +811,9 @@ function PerformanceDashboard() {
   const debugPanel = (
     <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:"#f59e0b",lineHeight:1.8}}>
       DEBUG: platform={platform} market={market} | period={period} ({periodDays}nap) | cutoff={cutoffStr}<br/>
-      Google Ads sorok: {adsData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
-      ápr.26 HU sorok: {apr26rows.length} | összköltés nyers: {apr26rows.reduce((s,r)=>s+parseFloat(r["Cost: Amount spend"]||0),0).toFixed(2)}<br/>
+      Google Ads sorok: {adsData.length} | Meta sorok: {metaData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
       activeCamps összköltés: {activeCamps.reduce((s,c)=>s+c.spendEur,0).toFixed(2)}€
+      {metaData[0]&&<span> | Meta első acc: "{metaData[0]["Account: Account name"]}" date: "{metaData[0]["Report: Date"]}"</span>}
     </div>
   );
 
