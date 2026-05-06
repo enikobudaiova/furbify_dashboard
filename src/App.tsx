@@ -661,6 +661,7 @@ function buildChartData2(camps, days) {
 function PerformanceDashboard() {
   const [adsData,setAdsData]   = useState([]);
   const [metaData,setMetaData] = useState([]);
+  const [ga4Data,setGa4Data]   = useState([]);
   const [loading,setLoading]   = useState(true);
   const [error,setError]       = useState(null);
   const [platform,setPlatform] = useState("google");
@@ -678,13 +679,14 @@ function PerformanceDashboard() {
   async function loadData() {
     setLoading(true); setError(null);
     try {
-      const [ads, meta] = await Promise.all([
+      const [ads, meta, ga4] = await Promise.all([
         fetchSheet2("Google Ads"),
         fetchSheet2("Meta Ads").catch((e)=>{ console.warn("Meta betöltés hiba:", e.message); return []; }),
+        fetchCSV("GA4 Visitors").catch(()=>[]),
       ]);
       setAdsData(ads);
       setMetaData(meta);
-      console.log("Google Ads sorok:", ads.length, "Meta sorok:", meta.length);
+      setGa4Data(ga4);
       setLastUpdate(new Date().toLocaleTimeString("hu"));
       try {
         const fx=await fetch("https://open.er-api.com/v6/latest/EUR");
@@ -751,6 +753,25 @@ function PerformanceDashboard() {
     return filterByPeriod(allCamps,periodDays);
   },[allCamps,periodDays,period,customStart,customEnd]);
 
+  // GA4 látogatók összesítése és hó végi becslés
+  const ga4Summary = useMemo(()=>{
+    if(!ga4Data.length) return null;
+    const today = new Date();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    const dayOfMonth = today.getDate() - 1; // tegnap volt az utolsó adat
+
+    // Összes látogató az aktuális hónapban (mind a 4 domain)
+    const totalVisitors = ga4Data.reduce((s,r)=>s+parseInt(r["Total Users"]||0),0);
+
+    // Napi átlag
+    const dailyAvg = dayOfMonth > 0 ? Math.round(totalVisitors / dayOfMonth) : 0;
+
+    // Hó végi becslés
+    const estimated = Math.round(dailyAvg * daysInMonth);
+
+    return { totalVisitors, dailyAvg, estimated, daysInMonth, dayOfMonth };
+  },[ga4Data]);
+
   const summary = useMemo(()=>{
     const googleCamps = activeCamps.filter(c=>c.platform==="google");
     const metaCamps   = activeCamps.filter(c=>c.platform==="meta");
@@ -807,25 +828,9 @@ function PerformanceDashboard() {
   if(loading) return <div style={{textAlign:"center",padding:40,color:"#8899bb",fontSize:13}}>⟳ Adatok betöltése...</div>;
   if(error) return <div style={{textAlign:"center",padding:40}}><div style={{color:"#f87171",fontSize:13,marginBottom:12}}>{error}</div><button onClick={loadData} style={{background:"#73AF1C22",border:"1px solid #73AF1C55",color:"#73AF1C",fontSize:12,padding:"8px 18px",borderRadius:8,cursor:"pointer"}}>Újrapróbálás</button></div>;
 
-  // DEBUG
-  const today = new Date();
-  const cutoff = new Date(today.getTime() - periodDays * 86400000);
-  const cutoffStr = cutoff.toISOString().slice(0,10);
-  const apr26rows = adsData.filter(r=>r["Report: Date"]==="2026-04-26"&&(r["Account: Account name"]||"").includes("furbify.hu"));
-  const debugPanel = (
-    <div style={{background:"#1a1a2e",border:"2px solid #f59e0b",borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:"#f59e0b",lineHeight:1.8}}>
-      DEBUG: platform={platform} market={market} | period={period} ({periodDays}nap) | cutoff={cutoffStr}<br/>
-      Google Ads sorok: {adsData.length} | Meta sorok: {metaData.length} | allCamps: {allCamps.length} | activeCamps: {activeCamps.length}<br/>
-      activeCamps összköltés: {activeCamps.reduce((s,c)=>s+Number(c.spendEur||0),0).toFixed(2)}€
-      {metaData[0]&&<span> | Meta első acc: "{metaData[0]["Account: Account name"]}" date: "{metaData[0]["Report: Date"]}"</span>}
-      {activeCamps[0]&&<span><br/>activeCamps[0]: "{activeCamps[0].name}" days: {activeCamps[0].days?.length} | spendEur: {Number(activeCamps[0].spendEur).toFixed(2)} | első nap: {activeCamps[0].days?.[0]?.date} | utolsó: {activeCamps[0].days?.[activeCamps[0].days.length-1]?.date}</span>}
-    </div>
-  );
-
   // Ads Dashboard render
   return (
     <div>
-      {debugPanel}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",flexWrap:"wrap",gap:10,marginBottom:4}}>
         <div style={{fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8,color:"#eef2fc"}}>
           <span style={{width:8,height:8,borderRadius:"50%",background:accentColor,display:"inline-block"}}></span>
@@ -902,6 +907,30 @@ function PerformanceDashboard() {
         <AdsKPICard label="Konverziók"   value={fmtN(summary.conversions)}      color={AC.amber}/>
         <AdsKPICard label="Költés (€)"   value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
       </div>
+
+      {/* GA4 LÁTOGATÓK – csak összesített nézeten */}
+      {platform==="ossz" && ga4Summary && (
+        <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14,marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🌐 Webshop látogatók – aktuális hónap (összes domain)</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Látogatók eddig</div>
+              <div style={{fontSize:28,fontWeight:800,color:"#eef2fc"}}>{ga4Summary.totalVisitors.toLocaleString("hu")}</div>
+              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>{ga4Summary.dayOfMonth} napból</div>
+            </div>
+            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Napi átlag</div>
+              <div style={{fontSize:28,fontWeight:800,color:"#08B7E4"}}>{ga4Summary.dailyAvg.toLocaleString("hu")}</div>
+              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>látogató/nap</div>
+            </div>
+            <div style={{background:"#0d1520",borderRadius:10,padding:14,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"#8899bb",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Várható hó végéig</div>
+              <div style={{fontSize:28,fontWeight:800,color:"#34d399"}}>{ga4Summary.estimated.toLocaleString("hu")}</div>
+              <div style={{fontSize:11,color:"#4a5568",marginTop:4}}>{ga4Summary.daysInMonth} napos hónapra</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TREND CHARTS */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
