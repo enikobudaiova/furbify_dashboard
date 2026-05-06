@@ -515,7 +515,7 @@ function parseNum2(s){
   const n = parseFloat(clean);
   return isNaN(n)?0:n;
 }
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwAtIV87HasKpd-g_HlZUdnJ7X_ea7PogZNAB_5s8OI-wKY9XQgtIKbDYON6DUq9b4_2Q/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwmcxHQskNR-ZlbIWA_SFjMsEcxCp9qBXvEH2lzNqJEEyRfP3JumrLnJRtIaMu6nPGQZg/exec";
 
 async function fetchSheet2(sheetName){
   return new Promise((resolve, reject)=>{
