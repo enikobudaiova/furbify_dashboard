@@ -514,15 +514,30 @@ function parseNum2(s){
   }
   return parseFloat(clean)||0;
 }
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwl4U5ywHgNwYZLK3uPadGZQ3RsFYEv8tSSkGBnJB85pnE2YtwiGI4Tpf8C-wp25y9uyQ/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxmZWLYmNLGwpg4buVkvagNxdfEdCjFTX-LH624bCYoY6FVGa09M5uIG9e-sh6WDG-f1w/exec";
 
 async function fetchSheet2(sheetName){
   const cacheBust = Date.now();
   const url = `${WEBAPP_URL}?sheet=${encodeURIComponent(sheetName)}&cb=${cacheBust}`;
-  const res = await fetch(url);
+  const res = await fetch(url, {redirect:"follow", mode:"cors"});
   if(!res.ok) throw new Error("Fetch failed: "+res.status);
   const data = await res.json();
-  return data.filter(r=>Object.values(r).some(v=>v!==null&&v!==""));
+  // Fix date format: "Tue May 05 2026 00:00:00 GMT+0200..." → "2026-05-05"
+  return data.map(r=>{
+    const d = r["Report: Date"]||"";
+    if(d && !d.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      try {
+        const parsed = new Date(d);
+        if(!isNaN(parsed)) {
+          const y = parsed.getFullYear();
+          const m = String(parsed.getMonth()+1).padStart(2,"0");
+          const day = String(parsed.getDate()).padStart(2,"0");
+          r["Report: Date"] = `${y}-${m}-${day}`;
+        }
+      } catch(e) {}
+    }
+    return r;
+  }).filter(r=>Object.values(r).some(v=>v!==null&&v!==""));
 }
 
 function buildCampaigns(adsData, platform, market, eurHuf) {
