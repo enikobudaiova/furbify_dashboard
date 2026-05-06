@@ -527,10 +527,16 @@ async function fetchCSV(sheetName){
 
 async function fetchSheet2(sheetName){
   if(sheetName === "Google Ads") {
-    // Két külön fülből olvas és egyesíti
     const [hu, sk] = await Promise.all([
       fetchCSV("Google Ads HU"),
       fetchCSV("Google Ads SK"),
+    ]);
+    return [...hu, ...sk];
+  }
+  if(sheetName === "Meta Ads") {
+    const [hu, sk] = await Promise.all([
+      fetchCSV("Meta Ads HU"),
+      fetchCSV("Meta Ads SK"),
     ]);
     return [...hu, ...sk];
   }
