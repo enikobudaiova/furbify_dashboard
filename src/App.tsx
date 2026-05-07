@@ -972,15 +972,17 @@ function PerformanceDashboard() {
         <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14}}>
           <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>Kattintás & CTR trend</div>
           <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={chartData}>
+            <LineChart data={chartData} margin={{top:5,right:40,left:0,bottom:0}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1a2538"/>
-              <XAxis dataKey="date" tick={{fontSize:10,fill:"#4a5568"}}/>
-              <YAxis yAxisId="l" tick={{fontSize:10,fill:"#4a5568"}}/>
-              <YAxis yAxisId="r" orientation="right" tick={{fontSize:10,fill:"#4a5568"}}/>
+              <XAxis dataKey="date" tick={{fontSize:10,fill:"#4a5568"}} tickLine={false}/>
+              <YAxis yAxisId="clicks" orientation="left" tick={{fontSize:10,fill:"#08B7E4"}} tickLine={false} axisLine={false}
+                domain={[0,"auto"]} tickFormatter={v=>v>=1000?Math.round(v/1000)+"k":v}/>
+              <YAxis yAxisId="ctr" orientation="right" tick={{fontSize:10,fill:"#a78bfa"}} tickLine={false} axisLine={false}
+                domain={[0,"auto"]} tickFormatter={v=>v+"%"}/>
               <Tooltip content={<AdsTip/>}/>
               <Legend wrapperStyle={{fontSize:11}}/>
-              <Line yAxisId="l" type="monotone" dataKey="clicks" name="Kattintás" stroke={accentColor} strokeWidth={2} dot={{r:2}}/>
-              <Line yAxisId="r" type="monotone" dataKey="ctr" name="CTR %" stroke={AC.purple} strokeWidth={1.5} dot={{r:2}} strokeDasharray="4 2"/>
+              <Line yAxisId="clicks" type="monotone" dataKey="clicks" name="Kattintás" stroke="#08B7E4" strokeWidth={2} dot={{r:2}}/>
+              <Line yAxisId="ctr" type="monotone" dataKey="ctr" name="CTR %" stroke="#a78bfa" strokeWidth={2} dot={{r:2}} strokeDasharray="4 2"/>
             </LineChart>
           </ResponsiveContainer>
         </div>
