@@ -908,35 +908,60 @@ function PerformanceDashboard() {
         <AdsKPICard label="Költés (€)"   value={`€${fmtN(summary.spendEur,0)}`} color={AC.teal}/>
       </div>
 
-      {/* GA4 LÁTOGATÓK – csak összesített nézeten, csak Tegnap periódusban */}
-      {platform==="ossz" && period==="Tegnap" && ga4Data.length>0 && (()=>{
+      {/* GA4 LÁTOGATÓK – minden időszakban, összesített nézeten */}
+      {platform==="ossz" && ga4Data.length>0 && (()=>{
         const today = new Date();
         const yesterday = new Date(today.getTime()-86400000).toISOString().slice(0,10);
         const domains = ["furbify.hu","furbify.sk","furbify.cz","furbify.eu"];
-        const yesterdayRows = ga4Data.filter(r=>r["Date"]===yesterday);
-        const totalYesterday = yesterdayRows.reduce((s,r)=>s+parseInt(r["Total Users"]||0),0);
+        let startDate, endDate;
+        if(period==="egyéni"&&customStart&&customEnd){
+          startDate=customStart; endDate=customEnd;
+        } else {
+          endDate=yesterday;
+          startDate=new Date(today.getTime()-periodDays*86400000).toISOString().slice(0,10);
+        }
+        const periodRows = ga4Data.filter(r=>r["Date"]>=startDate&&r["Date"]<=endDate);
+        const totalVisitors = periodRows.reduce((s,r)=>s+parseInt(r["Total Users"]||0),0);
+        const domainTotals = domains.map(domain=>({
+          domain, total: periodRows.filter(r=>r["Property"]===domain).reduce((s,r)=>s+parseInt(r["Total Users"]||0),0)
+        }));
+        const allDates=[...new Set(periodRows.map(r=>r["Date"]))].sort();
+        const trendData=allDates.map(date=>({
+          date:date.slice(5),
+          total:periodRows.filter(r=>r["Date"]===date).reduce((s,r)=>s+parseInt(r["Total Users"]||0),0)
+        }));
         return (
           <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14,marginBottom:14}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🌐 Tegnapi webshop látogatók – {yesterday}</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
-              {domains.map(domain=>{
-                const row = yesterdayRows.find(r=>r["Property"]===domain);
-                const val = row ? parseInt(row["Total Users"]||0) : 0;
-                return (
-                  <div key={domain} style={{background:"#0d1520",borderRadius:10,padding:12,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:"#8899bb",marginBottom:6}}>{domain}</div>
-                    <div style={{fontSize:22,fontWeight:800,color:"#eef2fc"}}>{val.toLocaleString("hu")}</div>
-                  </div>
-                );
-              })}
-              <div style={{background:"#1e3a1a",borderRadius:10,padding:12,textAlign:"center"}}>
-                <div style={{fontSize:10,color:"#34d399",marginBottom:6}}>Összesen</div>
-                <div style={{fontSize:22,fontWeight:800,color:"#34d399"}}>{totalYesterday.toLocaleString("hu")}</div>
-              </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>🌐 Webshop látogatók – {startDate} → {endDate}</div>
+              <div style={{fontSize:20,fontWeight:800,color:"#34d399"}}>{totalVisitors.toLocaleString("hu")} látogató</div>
             </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+              {domainTotals.map(({domain,total})=>(
+                <div key={domain} style={{background:"#0d1520",borderRadius:10,padding:10,textAlign:"center"}}>
+                  <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>{domain}</div>
+                  <div style={{fontSize:18,fontWeight:800,color:"#eef2fc"}}>{total.toLocaleString("hu")}</div>
+                </div>
+              ))}
+            </div>
+            {trendData.length>1&&(
+              <div>
+                <div style={{fontSize:11,color:"#8899bb",marginBottom:8}}>Napi látogató trend</div>
+                <ResponsiveContainer width="100%" height={120}>
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1a2538"/>
+                    <XAxis dataKey="date" tick={{fontSize:9,fill:"#4a5568"}} tickLine={false}/>
+                    <YAxis tick={{fontSize:9,fill:"#4a5568"}} tickLine={false} axisLine={false} tickFormatter={v=>v>=1000?Math.round(v/1000)+"k":v}/>
+                    <Tooltip contentStyle={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:8,fontSize:11}} formatter={(v)=>[v.toLocaleString("hu")+" látogató","Összes"]} labelStyle={{color:"#8899bb"}}/>
+                    <Line type="monotone" dataKey="total" stroke="#34d399" strokeWidth={2} dot={false}/>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         );
       })()}
+
 
       {/* TREND CHARTS */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
