@@ -920,10 +920,13 @@ function PerformanceDashboard() {
           endDate=yesterday;
           startDate=new Date(today.getTime()-periodDays*86400000).toISOString().slice(0,10);
         }
-        const periodRows = ga4Data.filter(r=>r["Date"]>=startDate&&r["Date"]<=endDate);
+        const periodRows = ga4Data.filter(r=>{
+          const d = (r["Date"]||"").trim();
+          return d>=startDate && d<=endDate;
+        });
         const totalVisitors = periodRows.reduce((s,r)=>s+parseInt(r["Total Users"]||0),0);
         const domainTotals = domains.map(domain=>({
-          domain, total: periodRows.filter(r=>r["Property"]===domain).reduce((s,r)=>s+parseInt(r["Total Users"]||0),0)
+          domain, total: periodRows.filter(r=>(r["Property"]||"").trim()===domain).reduce((s,r)=>s+parseInt(r["Total Users"]||0),0)
         }));
         const allDates=[...new Set(periodRows.map(r=>r["Date"]))].sort();
         const trendData=allDates.map(date=>({
@@ -932,17 +935,18 @@ function PerformanceDashboard() {
         }));
         return (
           <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:12,padding:14,marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>🌐 Webshop látogatók – {startDate} → {endDate}</div>
-              <div style={{fontSize:20,fontWeight:800,color:"#34d399"}}>{totalVisitors.toLocaleString("hu")} látogató</div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#eef2fc",marginBottom:12}}>🌐 Webshop látogatók – {startDate} → {endDate}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:14}}>
               {domainTotals.map(({domain,total})=>(
                 <div key={domain} style={{background:"#0d1520",borderRadius:10,padding:10,textAlign:"center"}}>
                   <div style={{fontSize:10,color:"#8899bb",marginBottom:4}}>{domain}</div>
                   <div style={{fontSize:18,fontWeight:800,color:"#eef2fc"}}>{total.toLocaleString("hu")}</div>
                 </div>
               ))}
+              <div style={{background:"#1e3a1a",borderRadius:10,padding:10,textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#34d399",marginBottom:4}}>Összesen</div>
+                <div style={{fontSize:18,fontWeight:800,color:"#34d399"}}>{totalVisitors.toLocaleString("hu")}</div>
+              </div>
             </div>
             {trendData.length>1&&(
               <div>
