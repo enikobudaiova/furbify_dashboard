@@ -527,11 +527,12 @@ async function fetchCSV(sheetName){
 
 async function fetchSheet2(sheetName){
   if(sheetName === "Google Ads") {
-    const [hu, sk] = await Promise.all([
+    const [hu, sk, fr] = await Promise.all([
       fetchCSV("Google Ads HU"),
       fetchCSV("Google Ads SK"),
+      fetchCSV("Google Ads FR"),
     ]);
-    return [...hu, ...sk];
+    return [...hu, ...sk, ...fr];
   }
   if(sheetName === "Meta Ads") {
     const [hu, sk] = await Promise.all([
@@ -550,12 +551,14 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
   // Meta: "FURBIFY HU s.r.o." / "FURBIFY SK"
   const isHuAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.hu"||a.includes("furbify hu")||a.includes("furbify.hu"); };
   const isSkAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.sk"||a.includes("furbify sk")||a.includes("furbify.sk"); };
+  const isFrAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.fr"||a.includes("furbify fr")||a.includes("furbify.fr"); };
 
   const filtered = adsData.filter(r=>{
     const acc=(r["Account: Account name"]||"").trim();
     if(!acc) return true;
     if(market==="hu") return isHuAcc(acc);
     if(market==="sk") return isSkAcc(acc);
+    if(market==="fr") return isFrAcc(acc);
     return true;
   });
 
@@ -569,7 +572,7 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
 
     let isHuf = false;
     if(platform==="google") {
-      isHuf = isHuAcc(acc);
+      isHuf = isHuAcc(acc); // csak HU = HUF, SK és FR = EUR
     } else if(platform==="meta") {
       if(market==="hu") isHuf = true;
       else if(market==="all") isHuf = (isHuAcc(acc) || spendRaw > 200);
@@ -892,6 +895,7 @@ function PerformanceDashboard() {
         <div style={{display:"flex",gap:8,padding:"10px 0",borderBottom:"1px solid #1a2538",marginBottom:14}}>
           <SubTab id="sk" label="🇸🇰 furbify.sk"/>
           <SubTab id="hu" label="🇭🇺 furbify.hu"/>
+          <SubTab id="fr" label="🇫🇷 furbify.fr"/>
         </div>
       )}
       {platform==="ossz"&&<div style={{marginBottom:14}}/>}
