@@ -895,7 +895,7 @@ function PerformanceDashboard() {
         <div style={{display:"flex",gap:8,padding:"10px 0",borderBottom:"1px solid #1a2538",marginBottom:14}}>
           <SubTab id="sk" label="🇸🇰 furbify.sk"/>
           <SubTab id="hu" label="🇭🇺 furbify.hu"/>
-          <SubTab id="fr" label="🇫🇷 furbify.fr"/>
+          <SubTab id="fr" label="🇫🇷🔴TESZT🔴 furbify.fr"/>
         </div>
       )}
       {platform==="ossz"&&<div style={{marginBottom:14}}/>}
