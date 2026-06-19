@@ -799,7 +799,7 @@ function PerformanceDashboard() {
   const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
 
   const Tab=({id,label})=>(
-    <div onClick={()=>setPlatform(id)} style={{padding:"10px 18px",fontSize:13,cursor:"pointer",
+    <div onClick={()=>{setPlatform(id); if(id!=="google"&&market==="fr") setMarket("hu");}} style={{padding:"10px 18px",fontSize:13,cursor:"pointer",
       borderBottom:`2px solid ${platform===id?accentColor:"transparent"}`,
       color:platform===id?"#eef2fc":"#8899bb",fontWeight:platform===id?700:400,whiteSpace:"nowrap"}}>
       {label}
@@ -895,7 +895,7 @@ function PerformanceDashboard() {
         <div style={{display:"flex",gap:8,padding:"10px 0",borderBottom:"1px solid #1a2538",marginBottom:14}}>
           <SubTab id="sk" label="🇸🇰 furbify.sk"/>
           <SubTab id="hu" label="🇭🇺 furbify.hu"/>
-          <SubTab id="fr" label="🇫🇷🔴TESZT🔴 furbify.fr"/>
+          {platform==="google"&&<SubTab id="fr" label="🇫🇷 furbify.fr"/>}
         </div>
       )}
       {platform==="ossz"&&<div style={{marginBottom:14}}/>}
