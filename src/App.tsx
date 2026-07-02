@@ -1700,7 +1700,7 @@ export default function Dashboard() {
 
         {/* TABS */}
         <div style={{display:"flex",gap:2,borderBottom:"1px solid #1a3040",marginBottom:16}}>
-          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].map(tab=>(
+          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].filter(tab=>!(tab.id==="persona"&&selMonth===7)).map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"transparent",border:"none",borderBottom:activeTab===tab.id?"2px solid #73AF1C":"2px solid transparent",color:activeTab===tab.id?"#fff":"#3a5a6e",fontSize:12.5,fontWeight:activeTab===tab.id?700:400,padding:"8px 18px",cursor:"pointer",marginBottom:-1,transition:"all 0.15s"}}>{tab.label}</button>
           ))}
         </div>
@@ -1710,7 +1710,7 @@ export default function Dashboard() {
           <div>
             <TeamOverview tasks={tasks} team={team} selMonth={selMonth}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <TaskSection title="👤 Persona kutatás" items={t.persona} accent="#08B7E4" month={selMonth} type="persona" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              {selMonth!==7&&<TaskSection title="👤 Persona kutatás" items={t.persona} accent="#08B7E4" month={selMonth} type="persona" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>}
               <TaskSection title="📣 Kampányok" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
               <TaskSection title="📧 Hírlevelek" items={t.other} accent="#FA8C05" month={selMonth} type="other" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
               <TaskSection title="🎬 Content kötelező" items={t.content} accent="#73AF1C" month={selMonth} type="content" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
