@@ -413,196 +413,136 @@ function CampaignChart({ campaigns }) {
   );
 }
 // ─── KAMPÁNY ELEMZÉS ───────────────────────────────────────────
-function AdsAIInsights({ campaigns, platform, market, period }) {
+function AdsAIInsights({ campaigns, allCamps, platform, market, period }) {
   const [insight, setInsight] = useState(null);
+  const [search, setSearch] = useState("");
+  const [lastPeriod, setLastPeriod] = useState(null);
 
-  const analyze = () => {
-    if(!campaigns.length){ setInsight([{type:"warn",title:"Nincs adat",text:"Nincs elegendő kampányadat az elemzéshez."}]); return; }
+  const runAnalysis = (camps, allC, per) => {
+    if(!camps.length){ setInsight([{type:"warn",title:"Nincs adat",text:"Nincs elegendő kampányadat az elemzéshez."}]); return; }
 
     const insights = [];
-    const totalSpend = campaigns.reduce((s,c)=>s+Number(c.spendEur||0),0);
-    const totalConv  = campaigns.reduce((s,c)=>s+Number(c.conversions||0),0);
-    const avgCtr     = campaigns.length ? campaigns.reduce((s,c)=>s+Number(c.ctr||0),0)/campaigns.length : 0;
-    const avgRoas    = campaigns.filter(c=>c.conversions>0).length ?
-      campaigns.filter(c=>c.conversions>0).reduce((s,c)=>s+Number(c.roas||0),0)/campaigns.filter(c=>c.conversions>0).length : 0;
+    const totalSpend = camps.reduce((s,c)=>s+Number(c.spendEur||0),0);
+    const totalConv  = camps.reduce((s,c)=>s+Number(c.conversions||0),0);
+    const avgCtr     = camps.length ? camps.reduce((s,c)=>s+Number(c.ctr||0),0)/camps.length : 0;
+    const avgRoas    = camps.filter(c=>c.conversions>0).length ?
+      camps.filter(c=>c.conversions>0).reduce((s,c)=>s+Number(c.roas||0),0)/camps.filter(c=>c.conversions>0).length : 0;
 
     // 1. Kampányok ahol van koltes de 0 konverzio
-    const noConvWithSpend = campaigns.filter(c=>Number(c.spendEur||0)>10&&Number(c.conversions||0)===0);
-    noConvWithSpend.slice(0,3).forEach(c=>{
+    camps.filter(c=>Number(c.spendEur||0)>10&&Number(c.conversions||0)===0).slice(0,3).forEach(c=>{
       insights.push({type:"down",
-        title:"⚠️ Koltes konverzio nelkul",
-        text:"\""+c.name.slice(0,35)+"\" – €"+Number(c.spendEur).toFixed(0)+" koltes, 0 konverzio "+period+" alatt. Erdemes atnezni a celzast es a landing page-et."
+        title:"⚠️ Költés konverzió nélkül",
+        text:"\""+c.name.slice(0,35)+"\" – €"+Number(c.spendEur).toFixed(0)+" költés, 0 konverzió "+per+" alatt."
       });
     });
 
-    // 2. Trend alapu elemzes
-    campaigns.forEach(c=>{
-      const days = c.days || [];
-      if(days.length < 4) return;
-      const half = Math.floor(days.length/2);
-      const prev = days.slice(0, half);
-      const curr = days.slice(half);
-      const prevSpend = prev.reduce((s,d)=>s+Number(d.spendEur||0),0)/(prev.length||1);
-      const currSpend = curr.reduce((s,d)=>s+Number(d.spendEur||0),0)/(curr.length||1);
-      const prevConv  = prev.reduce((s,d)=>s+Number(d.conversions||0),0)/(prev.length||1);
-      const currConv  = curr.reduce((s,d)=>s+Number(d.conversions||0),0)/(curr.length||1);
-      const prevCtr   = prev.reduce((s,d)=>s+Number(d.ctr||0),0)/(prev.length||1);
-      const currCtr   = curr.reduce((s,d)=>s+Number(d.ctr||0),0)/(curr.length||1);
-
-      if(prevConv>0&&currConv>=0&&prevSpend>0&&currSpend>0){
-        const prevRoas = prevConv/prevSpend*100;
-        const currRoas = currConv/currSpend*100;
-        if(prevRoas>0&&(currRoas-prevRoas)/prevRoas < -0.4){
-          insights.push({type:"down",
-            title:"📉 ROAS csokkent: "+c.name.slice(0,30),
-            text:"Az idoszak masodik feleben a hatekonysag "+Math.round(Math.abs((currRoas-prevRoas)/prevRoas)*100)+"%-kal csokkent. Ellenorizd a bid strategiat."
-          });
-        }
+    // 2. Trend elemzés
+    camps.forEach(c=>{
+      const days = c.days||[];
+      if(days.length<4) return;
+      const half=Math.floor(days.length/2);
+      const prev=days.slice(0,half), curr=days.slice(half);
+      const prevSpend=prev.reduce((s,d)=>s+Number(d.spendEur||0),0)/(prev.length||1);
+      const currSpend=curr.reduce((s,d)=>s+Number(d.spendEur||0),0)/(curr.length||1);
+      const prevConv=prev.reduce((s,d)=>s+Number(d.conversions||0),0)/(prev.length||1);
+      const currConv=curr.reduce((s,d)=>s+Number(d.conversions||0),0)/(curr.length||1);
+      const prevCtr=prev.reduce((s,d)=>s+Number(d.ctr||0),0)/(prev.length||1);
+      const currCtr=curr.reduce((s,d)=>s+Number(d.ctr||0),0)/(curr.length||1);
+      if(prevConv>0&&prevSpend>0&&currSpend>0){
+        const prevR=prevConv/prevSpend*100, currR=currConv/currSpend*100;
+        if(prevR>0&&(currR-prevR)/prevR<-0.4) insights.push({type:"down",title:"📉 ROAS csökkent: "+c.name.slice(0,28),text:"Az időszak 2. felében "+Math.round(Math.abs((currR-prevR)/prevR)*100)+"%-kal csökkent a hatékonyság."});
       }
-
-      if(prevCtr>0.5&&(currCtr-prevCtr)/prevCtr < -0.35){
-        insights.push({type:"warn",
-          title:"📉 CTR csokkent: "+c.name.slice(0,30),
-          text:"CTR: "+prevCtr.toFixed(2)+"% → "+currCtr.toFixed(2)+"% ("+Math.round(Math.abs((currCtr-prevCtr)/prevCtr)*100)+"% csokkenes). Hirdetesszoveg felfrissitese javasolt."
-        });
-      }
-
-      if(prevCtr>0&&(currCtr-prevCtr)/prevCtr > 0.4){
-        insights.push({type:"up",
-          title:"🚀 CTR ugras: "+c.name.slice(0,30),
-          text:"CTR: "+prevCtr.toFixed(2)+"% → "+currCtr.toFixed(2)+"% (+"+Math.round((currCtr-prevCtr)/prevCtr*100)+"%). Ez a kampany egyre jobban teljesit!"
-        });
-      }
+      if(prevCtr>0.5&&(currCtr-prevCtr)/prevCtr<-0.35) insights.push({type:"warn",title:"📉 CTR csökkent: "+c.name.slice(0,28),text:"CTR: "+prevCtr.toFixed(2)+"% → "+currCtr.toFixed(2)+"%. Hirdetésszöveg felülvizsgálata javasolt."});
+      if(prevCtr>0&&(currCtr-prevCtr)/prevCtr>0.4) insights.push({type:"up",title:"🚀 CTR ugrott: "+c.name.slice(0,28),text:"CTR: "+prevCtr.toFixed(2)+"% → "+currCtr.toFixed(2)+"% (+"+Math.round((currCtr-prevCtr)/prevCtr*100)+"%). Egyre jobban teljesít!"});
     });
 
-    const topRoas = [...campaigns].filter(c=>c.conversions>0).sort((a,b)=>b.roas-a.roas)[0];
-    if(topRoas){
-      insights.push({type:"up",
-        title:"🏆 Legjobb ROAS: "+topRoas.name.slice(0,30),
-        text:"ROAS: "+Number(topRoas.roas).toFixed(1)+"x, "+Number(topRoas.conversions).toFixed(0)+" konverzió, €"+Number(topRoas.spendEur).toFixed(0)+" költéssel."
-      });
-    }
+    // 3. Top teljesítők
+    const topRoas=[...camps].filter(c=>c.conversions>0).sort((a,b)=>b.roas-a.roas)[0];
+    if(topRoas) insights.push({type:"up",title:"🏆 Legjobb ROAS: "+topRoas.name.slice(0,28),text:"ROAS: "+Number(topRoas.roas).toFixed(1)+"x | "+Number(topRoas.conversions).toFixed(0)+" konverzió | €"+Number(topRoas.spendEur).toFixed(0)+" költés"});
+    const topConv=[...camps].sort((a,b)=>b.conversions-a.conversions)[0];
+    if(topConv&&topConv.conversions>0&&topConv.id!==topRoas?.id) insights.push({type:"up",title:"💰 Legtöbb konverzió: "+topConv.name.slice(0,28),text:Number(topConv.conversions).toFixed(0)+" konverzió | €"+Number(topConv.spendEur).toFixed(0)+" | "+per});
+    const topClicks=[...camps].sort((a,b)=>b.clicks-a.clicks).slice(0,3);
+    if(topClicks[0]&&topClicks[0].clicks>0) insights.push({type:"up",title:"👆 Top kattintások",text:topClicks.map(c=>c.name.slice(0,18)+" ("+Number(c.clicks).toLocaleString("hu")+")").join(" | ")});
+    const topCtr=[...camps].filter(c=>Number(c.impressions||0)>500).sort((a,b)=>b.ctr-a.ctr)[0];
+    if(topCtr&&Number(topCtr.ctr)>avgCtr*1.5) insights.push({type:"up",title:"🎯 Legjobb CTR: "+topCtr.name.slice(0,28),text:"CTR: "+Number(topCtr.ctr).toFixed(2)+"% – átlag "+Math.round(Number(topCtr.ctr)/avgCtr)+"x-ese"});
 
-    const topConv = [...campaigns].sort((a,b)=>b.conversions-a.conversions)[0];
-    if(topConv&&topConv.conversions>0&&topConv.id!==topRoas?.id){
-      insights.push({type:"up",
-        title:"💰 Legtöbb konverzió: "+topConv.name.slice(0,30),
-        text:Number(topConv.conversions).toFixed(0)+" konverzió €"+Number(topConv.spendEur).toFixed(0)+" költéssel ("+period+" alatt)."
-      });
-    }
+    // 4. Figyelmeztetés
+    const hsc=camps.filter(c=>Number(c.spendEur||0)>totalSpend*0.15&&Number(c.ctr||0)<avgCtr*0.6&&Number(c.impressions||0)>1000);
+    if(hsc[0]) insights.push({type:"warn",title:"💸 Magas költés, alacsony CTR",text:"\""+hsc[0].name.slice(0,30)+"\" – €"+Number(hsc[0].spendEur).toFixed(0)+" | CTR: "+Number(hsc[0].ctr).toFixed(2)+"% (átlag: "+avgCtr.toFixed(2)+"%)"});
 
-    // Top 3 kattintás szerint
-    const topClicks = [...campaigns].sort((a,b)=>b.clicks-a.clicks).slice(0,3);
-    if(topClicks[0]&&topClicks[0].clicks>0){
-      const names = topClicks.map(c=>c.name.slice(0,20)+"("+Number(c.clicks).toLocaleString("hu")+" katt)").join(", ");
-      insights.push({type:"up",
-        title:"👆 Top kattintások ("+period+")",
-        text:names
-      });
-    }
-
-    // Top reach szerint (Meta esetén hasznos)
-    const topReach = [...campaigns].sort((a,b)=>{
-      const ar = a.days?.reduce((s,d)=>s+Number(d.reach||0),0)||0;
-      const br = b.days?.reduce((s,d)=>s+Number(d.reach||0),0)||0;
-      return br-ar;
-    }).slice(0,3);
-    const totalReach = topReach.reduce((s,c)=>s+(c.days?.reduce((r,d)=>r+Number(d.reach||0),0)||0),0);
-    if(totalReach>0){
-      const names = topReach.filter(c=>{
-        const r = c.days?.reduce((s,d)=>s+Number(d.reach||0),0)||0;
-        return r>0;
-      }).slice(0,3).map(c=>{
-        const r = c.days?.reduce((s,d)=>s+Number(d.reach||0),0)||0;
-        return c.name.slice(0,18)+"("+r.toLocaleString("hu")+")";
-      }).join(", ");
-      if(names) insights.push({type:"up",
-        title:"👀 Top elérés ("+period+")",
-        text:names
-      });
-    }
-
-    // Top CTR szerint
-    const topCtr = [...campaigns].filter(c=>Number(c.impressions||0)>500).sort((a,b)=>b.ctr-a.ctr)[0];
-    if(topCtr&&Number(topCtr.ctr)>avgCtr*1.5){
-      insights.push({type:"up",
-        title:"🎯 Legjobb CTR: "+topCtr.name.slice(0,30),
-        text:"CTR: "+Number(topCtr.ctr).toFixed(2)+"% – az átlag ("+avgCtr.toFixed(2)+"%) "+Math.round(Number(topCtr.ctr)/avgCtr)+"x-ese. Erős hirdetésszöveg!"
-      });
-    }
-
-    const highSpendLowCtr = campaigns.filter(c=>
-      Number(c.spendEur||0) > totalSpend*0.15 &&
-      Number(c.ctr||0) < avgCtr*0.6 &&
-      Number(c.impressions||0) > 1000
-    );
-    if(highSpendLowCtr[0]){
-      insights.push({type:"warn",
-        title:"💸 Magas költés, alacsony CTR",
-        text:"\""+highSpendLowCtr[0].name.slice(0,30)+"\" – €"+Number(highSpendLowCtr[0].spendEur).toFixed(0)+" költés, csak "+Number(highSpendLowCtr[0].ctr).toFixed(2)+"% CTR (átlag: "+avgCtr.toFixed(2)+"%)."
-      });
-    }
-
-    // Piaci összehasonlítás
-    const groups = {};
-    campaigns.forEach(c=>{
-      const acc = (c.account||"").toLowerCase();
-      let key = "egyéb";
-      if(acc.includes("furbify.hu")||acc.includes("furbify hu")) key = c.platform==="meta"?"Meta 🇭🇺 HU":"Google 🇭🇺 HU";
-      else if(acc.includes("furbify.sk")||acc.includes("furbify sk")) key = c.platform==="meta"?"Meta 🇸🇰 SK":"Google 🇸🇰 SK";
-      else if(acc.includes("furbify.fr")) key = "Google 🇫🇷 FR";
+    // 5. Piac összehasonlítás – allCamps alapján
+    const groups={};
+    allC.forEach(c=>{
+      const acc=(c.account||"").toLowerCase();
+      let key="Egyéb";
+      if(acc.includes("furbify.hu")||acc.includes("furbify hu")) key=c.platform==="meta"?"🟣 Meta 🇭🇺 HU":"🔵 Google 🇭🇺 HU";
+      else if(acc.includes("furbify.sk")||acc.includes("furbify sk")) key=c.platform==="meta"?"🟣 Meta 🇸🇰 SK":"🔵 Google 🇸🇰 SK";
+      else if(acc.includes("furbify.fr")) key="🔵 Google 🇫🇷 FR";
       if(!groups[key]) groups[key]={spend:0,clicks:0,conversions:0,impressions:0};
-      groups[key].spend += Number(c.spendEur||0);
-      groups[key].clicks += Number(c.clicks||0);
-      groups[key].conversions += Number(c.conversions||0);
-      groups[key].impressions += Number(c.impressions||0);
+      groups[key].spend+=Number(c.spendEur||0);
+      groups[key].clicks+=Number(c.clicks||0);
+      groups[key].conversions+=Number(c.conversions||0);
+      groups[key].impressions+=Number(c.impressions||0);
     });
-
-    const sortedGroups = Object.entries(groups).sort((a,b)=>b[1].spend-a[1].spend);
-    if(sortedGroups.length>1){
-      const marketText = sortedGroups.map(([name,g])=>
-        `${name}: €${g.spend.toFixed(0)} | ${g.clicks.toLocaleString("hu")} katt | ${g.conversions.toFixed(0)} konv | CTR: ${g.impressions>0?((g.clicks/g.impressions)*100).toFixed(2):0}%`
-      ).join("\n");
-      insights.push({type:"info",title:"🗺️ Piac összehasonlítás ("+period+")",text:marketText,multiline:true});
+    const sortedG=Object.entries(groups).sort((a,b)=>b[1].spend-a[1].spend);
+    if(sortedG.length>1){
+      const txt=sortedG.map(([n,g])=>n+": €"+g.spend.toFixed(0)+" | "+g.clicks.toLocaleString("hu")+" katt | "+g.conversions.toFixed(0)+" konv | CTR: "+(g.impressions>0?((g.clicks/g.impressions)*100).toFixed(2):0)+"%").join("\n");
+      insights.push({type:"info",title:"🗺️ Piac összehasonlítás ("+per+")",text:txt,multiline:true});
     }
+
+    // 6. Összefoglaló
+    insights.push({type:avgRoas>=3?"up":"warn",title:"📊 Összefoglaló ("+per+")",text:"Összes költés: €"+totalSpend.toFixed(0)+" | Konverziók: "+totalConv.toFixed(0)+" | Átlag ROAS: "+avgRoas.toFixed(1)+"x | Átlag CTR: "+avgCtr.toFixed(2)+"%"});
 
     setInsight(insights.slice(0,12));
   };
 
-  const iconStyle=(type)=>({
-    width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
-    fontSize:13,flexShrink:0,
-    background:type==="up"?"#1e3a1a":type==="down"?"#3a1a1a":type==="info"?"#0d2538":"#3a2a0a",
-    color:type==="up"?"#34d399":type==="down"?"#f87171":type==="info"?"#08B7E4":"#fbbf24"
-  });
+  // Auto-elemzés ha az időszak vagy kampányok változnak
+  useEffect(()=>{
+    if(campaigns.length>0){
+      runAnalysis(campaigns, allCamps||campaigns, period);
+    }
+  },[campaigns.length, period]);
+
+  const filteredInsights = insight ? insight.filter(ins=>
+    !search || ins.title.toLowerCase().includes(search.toLowerCase()) || ins.text.toLowerCase().includes(search.toLowerCase())
+  ) : null;
 
   return (
     <div style={{background:"#1a2235",border:"1px solid #2e3a50",borderRadius:10,padding:14}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>✦ Kampány elemzés</span>
-        <button onClick={analyze}
-          style={{fontSize:12,padding:"5px 14px",borderRadius:6,border:"1px solid #2e3a50",
-            background:"#08B7E422",color:"#08B7E4",cursor:"pointer",fontWeight:600}}>
-          {insight?"↻ Frissít":"▶ Elemzés indítása"}
-        </button>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:13,fontWeight:700,color:"#eef2fc"}}>✦ Kampány elemzés – {period}</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Keresés..."
+            style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #2e3a50",
+              background:"#0d1520",color:"#eef2fc",outline:"none",width:140}}/>
+          <button onClick={()=>runAnalysis(campaigns, allCamps||campaigns, period)}
+            style={{fontSize:12,padding:"5px 12px",borderRadius:6,border:"1px solid #2e3a50",
+              background:"#08B7E422",color:"#08B7E4",cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>
+            ↻ Frissít
+          </button>
+        </div>
       </div>
       {!insight&&(
-        <div style={{fontSize:12,color:"#8899bb",padding:"12px 0"}}>
-          Kattints az "Elemzés indítása" gombra – azonosítja a problémás és kiemelkedő kampányokat, trend változásokat, és piac szerinti bontást ad.
+        <div style={{fontSize:12,color:"#8899bb",padding:"8px 0"}}>
+          ⟳ Elemzés betöltése...
         </div>
       )}
-      {insight&&insight.map((ins,i)=>(
+      {filteredInsights&&filteredInsights.map((ins,i)=>(
         <div key={i} style={{display:"flex",gap:10,padding:"10px 0",borderTop:i>0?"1px solid #1a2538":"none",alignItems:"flex-start"}}>
-          <div style={iconStyle(ins.type)}>{ins.type==="up"?"▲":ins.type==="down"?"▼":ins.type==="info"?"●":"!"}</div>
+          <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0,
+            background:ins.type==="up"?"#1e3a1a":ins.type==="down"?"#3a1a1a":ins.type==="info"?"#0d2538":"#3a2a0a",
+            color:ins.type==="up"?"#34d399":ins.type==="down"?"#f87171":ins.type==="info"?"#08B7E4":"#fbbf24"}}>
+            {ins.type==="up"?"▲":ins.type==="down"?"▼":ins.type==="info"?"●":"!"}
+          </div>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:600,color:"#eef2fc",marginBottom:3}}>{ins.title}</div>
-            {ins.multiline ? (
+            {ins.multiline?(
               <div style={{fontSize:11,color:"#8899bb",lineHeight:2}}>
                 {ins.text.split("\n").map((line,j)=>(
                   <div key={j} style={{borderBottom:j<ins.text.split("\n").length-1?"1px solid #1a2538":"none",paddingBottom:4,marginBottom:4}}>{line}</div>
                 ))}
               </div>
-            ) : (
+            ):(
               <div style={{fontSize:12,color:"#8899bb",lineHeight:1.6}}>{ins.text}</div>
             )}
           </div>
@@ -611,6 +551,7 @@ function AdsAIInsights({ campaigns, platform, market, period }) {
     </div>
   );
 }
+
 
 
 // ─── PERFORMANCE DASHBOARD ────────────────────────────────────
@@ -1155,7 +1096,7 @@ function PerformanceDashboard() {
           <AdsRankingTable campaigns={activeCamps} sortBy={sortBy} market={market}/>
         </div>
         <CampaignChart campaigns={activeCamps}/>
-        <AdsAIInsights campaigns={activeCamps} platform={platform} market={market} period={period}/>
+        <AdsAIInsights campaigns={activeCamps} allCamps={allCamps} platform={platform} market={market} period={period}/>
       </div>
     </div>
   );
