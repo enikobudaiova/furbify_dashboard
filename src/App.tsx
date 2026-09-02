@@ -1779,7 +1779,7 @@ export default function Dashboard() {
 
         {/* TABS */}
         <div style={{display:"flex",gap:2,borderBottom:"1px solid #1a3040",marginBottom:16}}>
-          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].filter(tab=>!(tab.id==="persona"&&selMonth===7)).map(tab=>(
+          {[{id:"tasks",label:"📋 Feladatok"},{id:"persona",label:"👤 Persona roadmap"},{id:"calendar",label:"📅 Kampánynaptár"},{id:"performance",label:"📈 Teljesítmény"}].filter(tab=>!(tab.id==="persona"&&(selMonth===7||selMonth>=9))).map(tab=>(
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{background:"transparent",border:"none",borderBottom:activeTab===tab.id?"2px solid #73AF1C":"2px solid transparent",color:activeTab===tab.id?"#fff":"#3a5a6e",fontSize:12.5,fontWeight:activeTab===tab.id?700:400,padding:"8px 18px",cursor:"pointer",marginBottom:-1,transition:"all 0.15s"}}>{tab.label}</button>
           ))}
         </div>
@@ -1789,10 +1789,22 @@ export default function Dashboard() {
           <div>
             <TeamOverview tasks={tasks} team={team} selMonth={selMonth}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {selMonth!==7&&<TaskSection title="👤 Persona kutatás" items={t.persona} accent="#08B7E4" month={selMonth} type="persona" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>}
-              <TaskSection title="📣 Kampányok" items={t.campaigns} accent={ph.accent} month={selMonth} type="campaigns" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
-              <TaskSection title="📧 Hírlevelek" items={t.other} accent="#FA8C05" month={selMonth} type="other" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
-              <TaskSection title="🎬 Content kötelező" items={t.content} accent="#73AF1C" month={selMonth} type="content" onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+              {[
+                {type:"persona",  title:"👤 Persona kutatás",  items:t.persona,  accent:"#08B7E4", show:selMonth!==7},
+                {type:"campaigns",title:"📣 Kampányok",        items:t.campaigns,accent:ph.accent, show:true},
+                {type:"other",    title:"📧 Hírlevelek",       items:t.other,    accent:"#FA8C05", show:true},
+                {type:"content",  title:"🎬 Content kötelező", items:t.content,  accent:"#73AF1C", show:true},
+              ].filter(sec=>sec.show&&!(t.hidden||[]).includes(sec.type)).map(sec=>(
+                <div key={sec.type} style={{position:"relative"}}>
+                  <button onClick={()=>{
+                    if(!window.confirm("Biztosan törlöd a(z) \""+sec.title+"\" szekciót ebből a hónapból?")) return;
+                    const n={...tasks};n[selMonth]={...(n[selMonth]||{})};
+                    n[selMonth].hidden=[...(n[selMonth].hidden||[]),sec.type];
+                    saveTasks(n);
+                  }} title="Szekció törlése" style={{position:"absolute",top:12,right:12,zIndex:10,background:"#7f1d1d",border:"none",color:"#f87171",cursor:"pointer",fontSize:11,padding:"2px 8px",borderRadius:4,fontWeight:700}}>Szekció törlése</button>
+                  <TaskSection title={sec.title} items={sec.items} accent={sec.accent} month={selMonth} type={sec.type} onToggle={toggleTask} onEdit={editTask} onDelete={deleteTask} onAdd={addTask} team={team}/>
+                </div>
+              ))}
               {/* Extra szekciók */}
               {(t.extra||[]).map((sec,si)=>(
                 <div key={sec.id} style={{position:"relative"}}>
@@ -1845,6 +1857,24 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+            {/* Törölt szekciók visszaállítása */}
+            {(t.hidden||[]).length>0&&(
+              <div style={{marginTop:10,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{fontSize:11,color:"#3a5a6e"}}>Törölt szekciók:</span>
+                {(t.hidden||[]).map(h=>{
+                  const names={persona:"👤 Persona kutatás",campaigns:"📣 Kampányok",other:"📧 Hírlevelek",content:"🎬 Content kötelező"};
+                  return (
+                    <button key={h} onClick={()=>{
+                      const n={...tasks};n[selMonth]={...(n[selMonth]||{})};
+                      n[selMonth].hidden=(n[selMonth].hidden||[]).filter(x=>x!==h);
+                      saveTasks(n);
+                    }} style={{background:"transparent",border:"1px dashed #2e3a50",color:"#8899bb",fontSize:11,padding:"3px 10px",borderRadius:12,cursor:"pointer"}}>
+                      {names[h]||h} ↩ visszaállítás
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {/* Új szekció gomb */}
             <button onClick={()=>{
               const n={...tasks};
