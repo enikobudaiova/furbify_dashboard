@@ -478,6 +478,7 @@ function AdsAIInsights({ campaigns, allCamps, platform, market, period }) {
       if(acc.includes("furbify.hu")||acc.includes("furbify hu")) key=c.platform==="meta"?"🟣 Meta 🇭🇺 HU":"🔵 Google 🇭🇺 HU";
       else if(acc.includes("furbify.sk")||acc.includes("furbify sk")) key=c.platform==="meta"?"🟣 Meta 🇸🇰 SK":"🔵 Google 🇸🇰 SK";
       else if(acc.includes("furbify.fr")) key="🔵 Google 🇫🇷 FR";
+      else if(acc.includes("furbify.de")) key="🔵 Google 🇩🇪 DE";
       if(!groups[key]) groups[key]={spend:0,clicks:0,conversions:0,impressions:0};
       groups[key].spend+=Number(c.spendEur||0);
       groups[key].clicks+=Number(c.clicks||0);
@@ -601,12 +602,13 @@ async function fetchCSV(sheetName){
 
 async function fetchSheet2(sheetName){
   if(sheetName === "Google Ads") {
-    const [hu, sk, fr] = await Promise.all([
+    const [hu, sk, fr, de] = await Promise.all([
       fetchCSV("Google Ads HU"),
       fetchCSV("Google Ads SK"),
       fetchCSV("Google Ads FR"),
+      fetchCSV("Google Ads DE").catch((e)=>{ console.warn("Google Ads DE betöltés hiba:", e.message); return []; }),
     ]);
-    return [...hu, ...sk, ...fr];
+    return [...hu, ...sk, ...fr, ...de];
   }
   if(sheetName === "Meta Ads") {
     const [hu, sk] = await Promise.all([
@@ -626,6 +628,7 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
   const isHuAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.hu"||a.includes("furbify hu")||a.includes("furbify.hu"); };
   const isSkAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.sk"||a.includes("furbify sk")||a.includes("furbify.sk"); };
   const isFrAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.fr"||a.includes("furbify fr")||a.includes("furbify.fr"); };
+  const isDeAcc=(acc)=>{ const a=acc.trim().toLowerCase(); return a==="furbify.de"||a.includes("furbify de")||a.includes("furbify.de"); };
 
   const filtered = adsData.filter(r=>{
     const acc=(r["Account: Account name"]||"").trim();
@@ -633,6 +636,7 @@ function buildCampaigns(adsData, platform, market, eurHuf) {
     if(market==="hu") return isHuAcc(acc);
     if(market==="sk") return isSkAcc(acc);
     if(market==="fr") return isFrAcc(acc);
+    if(market==="de") return isDeAcc(acc);
     return true;
   });
 
@@ -873,7 +877,7 @@ function PerformanceDashboard() {
   const chartData = useMemo(()=>buildChartData2(allCamps,periodDays),[allCamps,periodDays]);
 
   const Tab=({id,label})=>(
-    <div onClick={()=>{setPlatform(id); if(id!=="google"&&market==="fr") setMarket("hu");}} style={{padding:"10px 18px",fontSize:13,cursor:"pointer",
+    <div onClick={()=>{setPlatform(id); if(id!=="google"&&(market==="fr"||market==="de")) setMarket("hu");}} style={{padding:"10px 18px",fontSize:13,cursor:"pointer",
       borderBottom:`2px solid ${platform===id?accentColor:"transparent"}`,
       color:platform===id?"#eef2fc":"#8899bb",fontWeight:platform===id?700:400,whiteSpace:"nowrap"}}>
       {label}
@@ -970,6 +974,7 @@ function PerformanceDashboard() {
           <SubTab id="sk" label="🇸🇰 furbify.sk"/>
           <SubTab id="hu" label="🇭🇺 furbify.hu"/>
           {platform==="google"&&<SubTab id="fr" label="🇫🇷 furbify.fr"/>}
+          {platform==="google"&&<SubTab id="de" label="🇩🇪 furbify.de"/>}
         </div>
       )}
       {platform==="ossz"&&<div style={{marginBottom:14}}/>}
